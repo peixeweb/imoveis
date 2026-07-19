@@ -28,16 +28,14 @@ export default function App() {
   const [soloProfile, setSoloProfile] = useState({ name: '', whatsapp: '', creci: '' });
   const [teamName, setTeamName] = useState('');
   const [apiToken, setApiToken] = useState(localStorage.getItem('invertexto_token') || '27353|DqTwBirNYy8jGCmPNLcBMFaRz2egq5OR');
+  const [isPublicView, setIsPublicView] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const imovelId = params.get('imovel');
     if (imovelId && properties.find(p => p.id === imovelId)) {
-      setActiveTab('simulador');
       setSelectedPropertyId(imovelId);
-      setAccountMode('solo');
-      setOnboardingStep('select');
-      setSoloProfile({ name: 'Corretor', whatsapp: '', creci: '' });
+      setIsPublicView(true);
     }
   }, []);
   
@@ -549,6 +547,111 @@ export default function App() {
               onClick={() => { setOnboardingStep('select'); setSelectedMode(null); }}>
               Voltar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== PUBLIC LANDING PAGE (ACESSO VIA ?imovel=ID) ===== */}
+      {isPublicView && selectedProperty && (
+        <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', flexDirection: 'column' }}>
+          
+          {/* Hero com fotos */}
+          <div style={{ background: '#0f172a', color: 'white', padding: '32px 16px 24px', textAlign: 'center' }}>
+            <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>{selectedProperty.title}</h1>
+            <p style={{ fontSize: '13px', opacity: 0.7, margin: 0 }}>{selectedProperty.location}</p>
+          </div>
+
+          {/* Galeria */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '24px 16px', background: '#f1f5f9' }}>
+            {(selectedProperty.images?.length > 0 ? selectedProperty.images : [{ url: selectedProperty.image, ratio: '1:1' }]).map((img, idx) => (
+              <div key={idx} style={{
+                width: '100%', maxWidth: '400px',
+                aspectRatio: img.ratio === '9:16' ? '9 / 16' : '4 / 3',
+                borderRadius: '12px', overflow: 'hidden',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                background: 'white', position: 'relative'
+              }}>
+                <img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                {selectedProperty.brokerName && (
+                  <div style={{
+                    position: 'absolute', bottom: '0', left: '0', right: '0',
+                    background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                    padding: '32px 16px 12px', display: 'flex', alignItems: 'center', gap: '10px'
+                  }}>
+                    <div style={{
+                      width: '36px', height: '36px', borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #2563eb, #06b6d4)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'white', fontWeight: 700, fontSize: '14px', flexShrink: 0
+                    }}>{selectedProperty.brokerName.charAt(0)}</div>
+                    <div>
+                      <div style={{ color: 'white', fontWeight: 600, fontSize: '13px' }}>{selectedProperty.brokerName}</div>
+                      <div style={{ color: '#94a3b8', fontSize: '11px' }}>{selectedProperty.brokerCreci}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Informações do imóvel */}
+          <div style={{ padding: '24px 16px', background: 'white', margin: '0 16px', borderRadius: '12px', marginTop: '-8px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>
+              {selectedProperty.price.startsWith('R$') ? selectedProperty.price : `R$ ${selectedProperty.price}`}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
+              {selectedProperty.specs?.split('|').map((s, i) => (
+                <span key={i} style={{
+                  background: '#f1f5f9', padding: '6px 12px', borderRadius: '20px',
+                  fontSize: '12px', color: '#475569', fontWeight: 500
+                }}>{s.trim()}</span>
+              ))}
+            </div>
+            <p style={{ color: '#64748b', fontSize: '14px', marginTop: '16px', lineHeight: 1.6 }}>
+              {selectedProperty.location}
+            </p>
+            {selectedProperty.mapsLink && (
+              <a href={selectedProperty.mapsLink} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: '13px', color: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                📍 Ver no Google Maps ↗
+              </a>
+            )}
+          </div>
+
+          {/* Corretor / CTA */}
+          <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+            {selectedProperty.brokerName && (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Seu corretor responsável</div>
+                <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '16px' }}>{selectedProperty.brokerName}</div>
+                <div style={{ fontSize: '13px', color: '#64748b' }}>{selectedProperty.brokerCreci}</div>
+              </div>
+            )}
+            <a
+              href={`https://wa.me/559999999999?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel: ${selectedProperty.title} - ${selectedProperty.price}`)}`}
+              target="_blank" rel="noopener noreferrer"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                width: '100%', maxWidth: '360px', margin: '0 auto',
+                padding: '16px 24px', borderRadius: '12px',
+                background: 'linear-gradient(135deg, #25d366, #128C7E)',
+                color: 'white', fontWeight: 700, fontSize: '17px',
+                textDecoration: 'none', boxShadow: '0 4px 16px rgba(37, 211, 102, 0.3)',
+                transition: 'transform 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+            >
+              💬 Falar com o Corretor
+            </a>
+            <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '12px' }}>
+              Clique no botão acima para falar diretamente com o corretor no WhatsApp
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div style={{ marginTop: 'auto', padding: '16px', textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>
+            ImobiFlow — Plataforma de Leads Imobiliários
           </div>
         </div>
       )}
