@@ -27,7 +27,7 @@ export default function App() {
   const [selectedMode, setSelectedMode] = useState(null); // 'solo' | 'team' durante onboarding
   const [soloProfile, setSoloProfile] = useState({ name: '', whatsapp: '', creci: '' });
   const [teamName, setTeamName] = useState('');
-  const [apiToken, setApiToken] = useState(localStorage.getItem('invertexto_token') || '');
+  const [apiToken, setApiToken] = useState(localStorage.getItem('invertexto_token') || '27353|DqTwBirNYy8jGCmPNLcBMFaRz2egq5OR');
   
   // Lista de Corretores da equipe (Roleta)
   const [brokers, setBrokers] = useState([
@@ -630,8 +630,22 @@ export default function App() {
         </nav>
 
         <div style={{ marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: '10px', color: apiToken ? 'var(--success)' : 'var(--muted)', textAlign: 'center', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+          <div 
+            style={{ fontSize: '10px', color: apiToken ? 'var(--success)' : 'var(--muted)', textAlign: 'center', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer' }}
+            onClick={() => document.getElementById('api-token-input')?.focus()}
+          >
             {apiToken ? '🔌 API Invertexto conectada' : '⚡ Modo simulação'}
+          </div>
+          <div style={{ marginBottom: '8px' }}>
+            <input
+              id="api-token-input"
+              type="text"
+              className="form-control"
+              placeholder="Token Invertexto"
+              value={apiToken}
+              onChange={(e) => { setApiToken(e.target.value); localStorage.setItem('invertexto_token', e.target.value); }}
+              style={{ fontSize: '11px', padding: '6px 8px', textAlign: 'center' }}
+            />
           </div>
           <button 
             className="btn btn-primary" 
