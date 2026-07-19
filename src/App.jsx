@@ -22,12 +22,24 @@ import {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [accountMode, setAccountMode] = useState('onboarding'); // 'onboarding' | 'solo' | 'team'
-  const [onboardingStep, setOnboardingStep] = useState('select'); // 'select' | 'register'
-  const [selectedMode, setSelectedMode] = useState(null); // 'solo' | 'team' durante onboarding
+  const [accountMode, setAccountMode] = useState('onboarding');
+  const [onboardingStep, setOnboardingStep] = useState('select');
+  const [selectedMode, setSelectedMode] = useState(null);
   const [soloProfile, setSoloProfile] = useState({ name: '', whatsapp: '', creci: '' });
   const [teamName, setTeamName] = useState('');
   const [apiToken, setApiToken] = useState(localStorage.getItem('invertexto_token') || '27353|DqTwBirNYy8jGCmPNLcBMFaRz2egq5OR');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const imovelId = params.get('imovel');
+    if (imovelId && properties.find(p => p.id === imovelId)) {
+      setActiveTab('simulador');
+      setSelectedPropertyId(imovelId);
+      setAccountMode('solo');
+      setOnboardingStep('select');
+      setSoloProfile({ name: 'Corretor', whatsapp: '', creci: '' });
+    }
+  }, []);
   
   // Lista de Corretores da equipe (Roleta)
   const [brokers, setBrokers] = useState([
@@ -870,17 +882,30 @@ export default function App() {
                       <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 500 }}>
                         {property.leadsCount} Leads captados
                       </span>
-                      <button 
-                        className="btn btn-secondary" 
-                        style={{ padding: '6px 12px', fontSize: '12px' }}
-                        onClick={() => {
-                          setSelectedPropertyId(property.id);
-                          handleResetSim();
-                          setActiveTab('simulador');
-                        }}
-                      >
-                        Ver Landing / Testar Bot
-                      </button>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button 
+                          className="btn btn-secondary" 
+                          style={{ padding: '6px 10px', fontSize: '11px' }}
+                          onClick={() => {
+                            const link = `${window.location.origin}${window.location.pathname}?imovel=${property.id}`;
+                            navigator.clipboard.writeText(link);
+                            alert('Link da landing page copiado!');
+                          }}
+                        >
+                          🔗 Copiar Link
+                        </button>
+                        <button 
+                          className="btn btn-secondary" 
+                          style={{ padding: '6px 12px', fontSize: '12px' }}
+                          onClick={() => {
+                            setSelectedPropertyId(property.id);
+                            handleResetSim();
+                            setActiveTab('simulador');
+                          }}
+                        >
+                          Ver Landing
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1367,6 +1392,13 @@ export default function App() {
                 </select>
                 <button className="btn btn-secondary" onClick={handleResetSim}>
                   Reiniciar Simulação
+                </button>
+                <button className="btn btn-primary" style={{ whiteSpace: 'nowrap' }} onClick={() => {
+                  const link = `${window.location.origin}${window.location.pathname}?imovel=${selectedPropertyId}`;
+                  navigator.clipboard.writeText(link);
+                  alert('Link da landing page copiado! Compartilhe com seus clientes.');
+                }}>
+                  🔗 Copiar Link da Landing
                 </button>
               </div>
             </div>
