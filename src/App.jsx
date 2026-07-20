@@ -28,14 +28,17 @@ export default function App() {
   const [soloProfile, setSoloProfile] = useState({ name: '', whatsapp: '', creci: '' });
   const [teamName, setTeamName] = useState('');
   const [apiToken, setApiToken] = useState(localStorage.getItem('invertexto_token') || '27353|DqTwBirNYy8jGCmPNLcBMFaRz2egq5OR');
-  const [isPublicView, setIsPublicView] = useState(false);
+  const urlImovelParam = new URLSearchParams(window.location.search).get('imovel');
+  const [isPublicView, setIsPublicView] = useState(!!urlImovelParam);
+  const [lastCreatedProperty, setLastCreatedProperty] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const imovelId = params.get('imovel');
     if (imovelId && properties.find(p => p.id === imovelId)) {
       setSelectedPropertyId(imovelId);
-      setIsPublicView(true);
+    } else if (imovelId) {
+      setIsPublicView(false);
     }
   }, []);
   
@@ -49,60 +52,25 @@ export default function App() {
 
   const [roundRobinIndex, setRoundRobinIndex] = useState(0);
 
-  // Lista de Imóveis cadastrados
-  const [properties, setProperties] = useState([
-    { 
-      id: '1', 
-      title: 'Sobrado de Alto Padrão - Taquari', 
-      price: 'R$ 1.350.000', 
-      location: 'Lago Norte, Brasília - DF',
-      mapsLink: 'https://maps.app.goo.gl/example1',
-      specs: '4 Quartos | 5 Banheiros | 3 Vagas',
-      image: '/gemini_casa.png',
-      images: [
-        { url: '/gemini_casa.png', ratio: '1:1' },
-        { url: '/creativo_casa.png', ratio: '9:16' }
-      ],
-      rule: 'CPF Regular',
-      leadsCount: 12,
-      brokerName: 'Roberto Silva',
-      brokerCreci: 'CRECI-DF 12345'
-    },
-    { 
-      id: '2', 
-      title: 'Galpão Comercial Modular', 
-      price: 'R$ 3.800.000', 
-      location: 'Setor de Indústrias, Brasília - DF',
-      mapsLink: 'https://maps.app.goo.gl/example2',
-      specs: '1200 m² | 4 Docas | Escritório',
-      image: '/casa_certa.png',
-      images: [
-        { url: '/casa_certa.png', ratio: '1:1' },
-        { url: '/casa_certa.png', ratio: '9:16' }
-      ],
-      rule: 'CNPJ Ativo',
-      leadsCount: 5,
-      brokerName: 'Ana Paula Costa',
-      brokerCreci: 'CRECI-DF 67890'
-    },
-    { 
-      id: '3', 
-      title: 'Apartamento Vista Lago', 
-      price: 'R$ 780.000', 
-      location: 'Sudoeste, Brasília - DF',
-      mapsLink: 'https://maps.app.goo.gl/example3',
-      specs: '2 Quartos | 1 Suíte | 2 Vagas',
-      image: '/casacerta_sem_marca.png',
-      images: [
-        { url: '/casacerta_sem_marca.png', ratio: '1:1' },
-        { url: '/casacerta_sem_marca.png', ratio: '9:16' }
-      ],
-      rule: 'CPF Regular',
-      leadsCount: 22,
-      brokerName: 'Marcos Oliveira',
-      brokerCreci: 'CRECI-DF 54321'
-    }
-  ]);
+  // Lista de Imóveis cadastrados (persistidos em localStorage)
+  const [properties, setProperties] = useState(() => {
+    try {
+      const saved = localStorage.getItem('imobiflow_properties');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [
+      { id: '1', title: 'Sobrado de Alto Padrão - Taquari', price: 'R$ 1.350.000', location: 'Lago Norte, Brasília - DF', mapsLink: 'https://maps.app.goo.gl/example1', specs: '4 Quartos | 5 Banheiros | 3 Vagas', image: '/gemini_casa.png', images: [{ url: '/gemini_casa.png', ratio: '1:1' }, { url: '/creativo_casa.png', ratio: '9:16' }], rule: 'CPF Regular', leadsCount: 12, brokerName: 'Roberto Silva', brokerCreci: 'CRECI-DF 12345', brokerWhatsapp: '5561992384758' },
+      { id: '2', title: 'Galpão Comercial Modular', price: 'R$ 3.800.000', location: 'Setor de Indústrias, Brasília - DF', mapsLink: 'https://maps.app.goo.gl/example2', specs: '1200 m² | 4 Docas | Escritório', image: '/casa_certa.png', images: [{ url: '/casa_certa.png', ratio: '1:1' }, { url: '/casa_certa.png', ratio: '9:16' }], rule: 'CNPJ Ativo', leadsCount: 5, brokerName: 'Ana Paula Costa', brokerCreci: 'CRECI-DF 67890', brokerWhatsapp: '5561988472948' },
+      { id: '3', title: 'Apartamento Vista Lago', price: 'R$ 780.000', location: 'Sudoeste, Brasília - DF', mapsLink: 'https://maps.app.goo.gl/example3', specs: '2 Quartos | 1 Suíte | 2 Vagas', image: '/casacerta_sem_marca.png', images: [{ url: '/casacerta_sem_marca.png', ratio: '1:1' }, { url: '/casacerta_sem_marca.png', ratio: '9:16' }], rule: 'CPF Regular', leadsCount: 22, brokerName: 'Marcos Oliveira', brokerCreci: 'CRECI-DF 54321', brokerWhatsapp: '5561991823746' }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('imobiflow_properties', JSON.stringify(properties));
+  }, [properties]);
 
   // Lista de Leads cadastrados/recebidos
   const [leads, setLeads] = useState([
@@ -170,7 +138,8 @@ export default function App() {
     rule: 'CPF Regular',
     images: [],
     brokerName: '',
-    brokerCreci: ''
+    brokerCreci: '',
+    brokerWhatsapp: ''
   });
 
   const [tempImageFile, setTempImageFile] = useState(null);
@@ -207,7 +176,7 @@ export default function App() {
   };
 
   // Simulator State
-  const [selectedPropertyId, setSelectedPropertyId] = useState('1');
+  const [selectedPropertyId, setSelectedPropertyId] = useState(urlImovelParam || '1');
   const [simStep, setSimStep] = useState(0); // 0: Landing, 1: Welcome Bot, 2: Choose PF/PJ, 3: Ask Doc, 4: Validating, 5: Sorteando, 6: Concluido
   const [simLeadType, setSimLeadType] = useState(''); // 'PF' | 'PJ'
   const [simRatio, setSimRatio] = useState('1:1');
@@ -232,9 +201,18 @@ export default function App() {
     e.preventDefault();
     if (!newProperty.title || !newProperty.price) return;
     
+    let brokerWhatsapp = '';
+    if (accountMode === 'solo') {
+      brokerWhatsapp = soloProfile.whatsapp;
+    } else if (newProperty.brokerName) {
+      const found = brokers.find(b => b.name === newProperty.brokerName);
+      if (found) brokerWhatsapp = found.whatsapp || '';
+    }
+    
     const created = {
       id: (properties.length + 1).toString(),
       ...newProperty,
+      brokerWhatsapp,
       image: newProperty.images[0]?.url || '/creativo_casa.png',
       leadsCount: 0,
       brokerName: accountMode === 'solo' ? soloProfile.name : newProperty.brokerName || 'Equipe',
@@ -242,6 +220,7 @@ export default function App() {
     };
     
     setProperties([...properties, created]);
+    setLastCreatedProperty(created);
     setNewProperty({
       title: '',
       price: '',
@@ -251,10 +230,10 @@ export default function App() {
       rule: 'CPF Regular',
       images: [],
       brokerName: '',
-      brokerCreci: ''
+      brokerCreci: '',
+      brokerWhatsapp: ''
     });
-    alert('Imóvel cadastrado com sucesso!');
-    setActiveTab('imoveis');
+    setActiveTab('landing_sucesso');
   };
 
   // Alterar estágio do lead no Kanban
@@ -427,6 +406,135 @@ export default function App() {
   // Contagem de leads por estágio
   const getLeadsByStage = (stage) => leads.filter(l => l.stage === stage);
 
+  // ===== PUBLIC LANDING PAGE =====
+  if (isPublicView) {
+    const property = selectedProperty;
+    if (!property) {
+      return <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontFamily: 'system-ui, sans-serif', fontSize: '18px' }}>Imóvel não encontrado</div>;
+    }
+    return (
+      <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', flexDirection: 'column', width: '100%' }}>
+        {/* Hero com fotos */}
+        <div style={{ background: '#0f172a', color: 'white', padding: '32px 16px 24px', textAlign: 'center' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>{property.title}</h1>
+          <p style={{ fontSize: '13px', opacity: 0.7, margin: 0 }}>{property.location}</p>
+        </div>
+
+        {/* Galeria */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '24px 16px', background: '#f1f5f9' }}>
+          {(property.images?.length > 0 ? property.images : [{ url: property.image, ratio: '1:1' }]).map((img, idx) => (
+            <div key={idx} style={{
+              width: '100%', maxWidth: '400px',
+              aspectRatio: img.ratio === '9:16' ? '9 / 16' : '4 / 3',
+              borderRadius: '12px', overflow: 'hidden',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+              background: 'white', position: 'relative'
+            }}>
+              <img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+              {property.brokerName && (
+                <div style={{
+                  position: 'absolute', bottom: '0', left: '0', right: '0',
+                  background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                  padding: '32px 16px 12px', display: 'flex', alignItems: 'center', gap: '10px'
+                }}>
+                  <div style={{
+                    width: '36px', height: '36px', borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #2563eb, #06b6d4)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'white', fontWeight: 700, fontSize: '14px', flexShrink: 0
+                  }}>{property.brokerName.charAt(0)}</div>
+                  <div>
+                    <div style={{ color: 'white', fontWeight: 600, fontSize: '13px' }}>{property.brokerName}</div>
+                    <div style={{ color: '#94a3b8', fontSize: '11px' }}>{property.brokerCreci}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Informações do imóvel */}
+        <div style={{ padding: '24px 16px', background: 'white', margin: '0 16px', borderRadius: '12px', marginTop: '-8px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>
+            {property.price.startsWith('R$') ? property.price : `R$ ${property.price}`}
+          </div>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
+            {property.specs?.split('|').map((s, i) => (
+              <span key={i} style={{
+                background: '#f1f5f9', padding: '6px 12px', borderRadius: '20px',
+                fontSize: '12px', color: '#475569', fontWeight: 500
+              }}>{s.trim()}</span>
+            ))}
+          </div>
+          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '16px', lineHeight: 1.6 }}>
+            {property.location}
+          </p>
+          {property.mapsLink && (
+            <a href={property.mapsLink} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: '13px', color: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+              📍 Ver no Google Maps ↗
+            </a>
+          )}
+        </div>
+
+        {/* Copy de vendas dinâmica */}
+        <div style={{ padding: '24px 16px', background: 'white', margin: '16px 16px 0', borderRadius: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <div style={{ fontSize: '15px', color: '#334155', lineHeight: 1.7 }}>
+            <p style={{ marginBottom: '12px' }}>
+              <strong style={{ color: '#1e3a8a' }}>Oportunidade única!</strong> {property.title} localizado em {property.location}. 
+              Com {property.specs?.toLowerCase()}, este imóvel oferece o conforto e a praticidade que você sempre sonhou. 
+              Acabamento impecável, áreas sociais integradas, segurança reforçada e excelente iluminação natural.
+            </p>
+            <p style={{ marginBottom: '12px' }}>
+              {property.rule === 'CNPJ Ativo' 
+                ? 'Ideal para sua empresa se estabelecer com toda a infraestrutura necessária. Localização estratégica para alavancar seus negócios.'
+                : 'Perfeito para sua família viver com qualidade, segurança e conforto. Agende sua visita e encante-se!'}
+            </p>
+            <p style={{ fontWeight: 600, color: '#0f172a' }}>
+              Valor: <span style={{ color: '#2563eb', fontSize: '18px' }}>{property.price.startsWith('R$') ? property.price : `R$ ${property.price}`}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Corretor / CTA */}
+        <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+          {property.brokerName && (
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Seu corretor responsável</div>
+              <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '16px' }}>{property.brokerName}</div>
+              <div style={{ fontSize: '13px', color: '#64748b' }}>{property.brokerCreci}</div>
+            </div>
+          )}
+          <a
+            href={`https://wa.me/${property.brokerWhatsapp || soloProfile.whatsapp || '559999999999'}?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel: ${property.title} - ${property.price}`)}`}
+            target="_blank" rel="noopener noreferrer"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+              width: '100%', maxWidth: '360px', margin: '0 auto',
+              padding: '16px 24px', borderRadius: '12px',
+              background: 'linear-gradient(135deg, #25d366, #128C7E)',
+              color: 'white', fontWeight: 700, fontSize: '17px',
+              textDecoration: 'none', boxShadow: '0 4px 16px rgba(37, 211, 102, 0.3)',
+              transition: 'transform 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+          >
+            💬 Falar com o Corretor
+          </a>
+          <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '12px' }}>
+            Clique no botão acima para falar diretamente com o corretor no WhatsApp
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div style={{ marginTop: 'auto', padding: '16px', textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>
+          ImobiFlow — Plataforma de Leads Imobiliários
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
 
@@ -551,113 +659,8 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== PUBLIC LANDING PAGE (ACESSO VIA ?imovel=ID) ===== */}
-      {isPublicView && selectedProperty && (
-        <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', flexDirection: 'column' }}>
-          
-          {/* Hero com fotos */}
-          <div style={{ background: '#0f172a', color: 'white', padding: '32px 16px 24px', textAlign: 'center' }}>
-            <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>{selectedProperty.title}</h1>
-            <p style={{ fontSize: '13px', opacity: 0.7, margin: 0 }}>{selectedProperty.location}</p>
-          </div>
-
-          {/* Galeria */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '24px 16px', background: '#f1f5f9' }}>
-            {(selectedProperty.images?.length > 0 ? selectedProperty.images : [{ url: selectedProperty.image, ratio: '1:1' }]).map((img, idx) => (
-              <div key={idx} style={{
-                width: '100%', maxWidth: '400px',
-                aspectRatio: img.ratio === '9:16' ? '9 / 16' : '4 / 3',
-                borderRadius: '12px', overflow: 'hidden',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-                background: 'white', position: 'relative'
-              }}>
-                <img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                {selectedProperty.brokerName && (
-                  <div style={{
-                    position: 'absolute', bottom: '0', left: '0', right: '0',
-                    background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
-                    padding: '32px 16px 12px', display: 'flex', alignItems: 'center', gap: '10px'
-                  }}>
-                    <div style={{
-                      width: '36px', height: '36px', borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #2563eb, #06b6d4)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: 'white', fontWeight: 700, fontSize: '14px', flexShrink: 0
-                    }}>{selectedProperty.brokerName.charAt(0)}</div>
-                    <div>
-                      <div style={{ color: 'white', fontWeight: 600, fontSize: '13px' }}>{selectedProperty.brokerName}</div>
-                      <div style={{ color: '#94a3b8', fontSize: '11px' }}>{selectedProperty.brokerCreci}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Informações do imóvel */}
-          <div style={{ padding: '24px 16px', background: 'white', margin: '0 16px', borderRadius: '12px', marginTop: '-8px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>
-              {selectedProperty.price.startsWith('R$') ? selectedProperty.price : `R$ ${selectedProperty.price}`}
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
-              {selectedProperty.specs?.split('|').map((s, i) => (
-                <span key={i} style={{
-                  background: '#f1f5f9', padding: '6px 12px', borderRadius: '20px',
-                  fontSize: '12px', color: '#475569', fontWeight: 500
-                }}>{s.trim()}</span>
-              ))}
-            </div>
-            <p style={{ color: '#64748b', fontSize: '14px', marginTop: '16px', lineHeight: 1.6 }}>
-              {selectedProperty.location}
-            </p>
-            {selectedProperty.mapsLink && (
-              <a href={selectedProperty.mapsLink} target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: '13px', color: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                📍 Ver no Google Maps ↗
-              </a>
-            )}
-          </div>
-
-          {/* Corretor / CTA */}
-          <div style={{ padding: '24px 16px', textAlign: 'center' }}>
-            {selectedProperty.brokerName && (
-              <div style={{ marginBottom: '20px' }}>
-                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Seu corretor responsável</div>
-                <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '16px' }}>{selectedProperty.brokerName}</div>
-                <div style={{ fontSize: '13px', color: '#64748b' }}>{selectedProperty.brokerCreci}</div>
-              </div>
-            )}
-            <a
-              href={`https://wa.me/559999999999?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel: ${selectedProperty.title} - ${selectedProperty.price}`)}`}
-              target="_blank" rel="noopener noreferrer"
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                width: '100%', maxWidth: '360px', margin: '0 auto',
-                padding: '16px 24px', borderRadius: '12px',
-                background: 'linear-gradient(135deg, #25d366, #128C7E)',
-                color: 'white', fontWeight: 700, fontSize: '17px',
-                textDecoration: 'none', boxShadow: '0 4px 16px rgba(37, 211, 102, 0.3)',
-                transition: 'transform 0.2s'
-              }}
-              onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
-              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-            >
-              💬 Falar com o Corretor
-            </a>
-            <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '12px' }}>
-              Clique no botão acima para falar diretamente com o corretor no WhatsApp
-            </p>
-          </div>
-
-          {/* Footer */}
-          <div style={{ marginTop: 'auto', padding: '16px', textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>
-            ImobiFlow — Plataforma de Leads Imobiliários
-          </div>
-        </div>
-      )}
-
       {/* ===== MAIN APP (AFTER ONBOARDING) ===== */}
-      {accountMode !== 'onboarding' && (<>
+      {accountMode !== 'onboarding' && !isPublicView && (<>
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="logo-container">
@@ -1246,6 +1249,170 @@ export default function App() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2.6: LANDING SUCESSO PÓS-CADASTRO */}
+        {activeTab === 'landing_sucesso' && lastCreatedProperty && (
+          <div className="animate-slide" style={{ maxWidth: '780px', margin: '0 auto', width: '100%' }}>
+            <div className="card" style={{ padding: '32px' }}>
+              {/* Header */}
+              <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                <div style={{
+                  width: '64px', height: '64px', borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 16px', fontSize: '32px'
+                }}>✅</div>
+                <h1 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '6px' }}>Imóvel Cadastrado com Sucesso!</h1>
+                <p style={{ color: 'var(--muted)', fontSize: '14px' }}>
+                  Sua landing page de vendas foi gerada automaticamente. Compartilhe o link abaixo.
+                </p>
+              </div>
+
+              {/* Card do Imóvel */}
+              <div style={{
+                display: 'flex', gap: '20px', padding: '20px',
+                backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px',
+                border: '1px solid var(--border)', marginBottom: '24px', flexWrap: 'wrap'
+              }}>
+                <div style={{ width: '140px', height: '140px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0 }}>
+                  <img src={lastCreatedProperty.images?.[0]?.url || lastCreatedProperty.image || '/creativo_casa.png'}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                </div>
+                <div style={{ flex: 1, minWidth: '200px' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '6px' }}>{lastCreatedProperty.title}</h2>
+                  <p style={{ fontSize: '22px', fontWeight: 700, color: 'var(--accent)', marginBottom: '6px' }}>
+                    {lastCreatedProperty.price.startsWith('R$') ? lastCreatedProperty.price : `R$ ${lastCreatedProperty.price}`}
+                  </p>
+                  <p style={{ fontSize: '13px', color: 'var(--muted)' }}>📍 {lastCreatedProperty.location}</p>
+                  <p style={{ fontSize: '13px', color: 'var(--muted)' }}>🔑 {lastCreatedProperty.specs}</p>
+                  <span className="badge badge-info" style={{ marginTop: '8px', fontSize: '11px' }}>{lastCreatedProperty.rule}</span>
+                </div>
+              </div>
+
+              {/* Corretor info */}
+              {lastCreatedProperty.brokerName && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '14px',
+                  padding: '16px', borderRadius: '10px',
+                  backgroundColor: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)',
+                  marginBottom: '24px'
+                }}>
+                  <div style={{
+                    width: '44px', height: '44px', borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #2563eb, #06b6d4)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'white', fontWeight: 700, fontSize: '18px', flexShrink: 0
+                  }}>
+                    {lastCreatedProperty.brokerName.charAt(0)}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'white', fontSize: '15px' }}>{lastCreatedProperty.brokerName}</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{lastCreatedProperty.brokerCreci}</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '2px' }}>
+                      📱 WhatsApp: {lastCreatedProperty.brokerWhatsapp || soloProfile.whatsapp || 'Não configurado'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Link da Landing Page */}
+              <div style={{
+                padding: '20px', borderRadius: '10px',
+                backgroundColor: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)',
+                marginBottom: '24px'
+              }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  🔗 Link da Sua Landing Page de Vendas
+                </div>
+                <div style={{
+                  display: 'flex', gap: '8px', alignItems: 'center',
+                  backgroundColor: '#0d121f', borderRadius: '8px', padding: '8px 12px',
+                  border: '1px solid var(--border)'
+                }}>
+                  <code style={{ flex: 1, fontSize: '13px', color: 'var(--accent)', fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>
+                    {`${window.location.origin}${window.location.pathname}?imovel=${lastCreatedProperty.id}`}
+                  </code>
+                  <button className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '12px', whiteSpace: 'nowrap', flexShrink: 0 }}
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?imovel=${lastCreatedProperty.id}`);
+                      alert('Link copiado! Compartilhe com seus clientes.');
+                    }}>
+                    📋 Copiar Link
+                  </button>
+                </div>
+                <p style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '8px' }}>
+                  Compartilhe este link nas suas redes sociais, grupos de WhatsApp e anúncios. Todo lead que acessar passará pela qualificação automática antes de falar com você.
+                </p>
+              </div>
+
+              {/* Preview da Copy de Vendas */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  📝 Copy de Vendas Gerada Automaticamente
+                </h3>
+                <div style={{
+                  padding: '20px', borderRadius: '10px',
+                  backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '14px', lineHeight: 1.7
+                }}>
+                  <div style={{ fontSize: '20px', fontWeight: 800, color: '#1e3a8a', marginBottom: '12px' }}>
+                    🏡 {lastCreatedProperty.title}
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#2563eb', marginBottom: '12px' }}>
+                    {lastCreatedProperty.price.startsWith('R$') ? lastCreatedProperty.price : `R$ ${lastCreatedProperty.price}`}
+                  </div>
+                  <div style={{ color: '#475569', marginBottom: '12px' }}>
+                    📍 {lastCreatedProperty.location}
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                    {lastCreatedProperty.specs?.split('|').map((s, i) => (
+                      <span key={i} style={{
+                        background: '#e2e8f0', padding: '4px 12px', borderRadius: '16px',
+                        fontSize: '12px', color: '#334155', fontWeight: 600
+                      }}>{s.trim()}</span>
+                    ))}
+                  </div>
+                  <div style={{ color: '#334155', marginBottom: '16px' }}>
+                    Oportunidade imperdível! {lastCreatedProperty.title} localizado em {lastCreatedProperty.location}. 
+                    Com {lastCreatedProperty.specs?.toLowerCase()}, este imóvel oferece o conforto e a praticidade que você sempre sonhou. 
+                    Agende já sua visita e garanta esta oportunidade única de investimento.
+                    {lastCreatedProperty.rule === 'CNPJ Ativo' 
+                      ? ' Ideal para sua empresa se estabelecer com toda a infraestrutura necessária.'
+                      : ' Perfeito para sua família viver com qualidade e segurança.'}
+                  </div>
+                  <div style={{
+                    background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px',
+                    padding: '12px', fontSize: '13px'
+                  }}>
+                    <strong style={{ color: '#166534' }}>💬 Fale com o corretor {lastCreatedProperty.brokerName}</strong> ({lastCreatedProperty.brokerCreci}) pelo WhatsApp e garanta já o seu! 🚀
+                  </div>
+                </div>
+              </div>
+
+              {/* Ações */}
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}
+                  onClick={() => {
+                    handleResetSim();
+                    setSelectedPropertyId(lastCreatedProperty.id);
+                    setActiveTab('simulador');
+                  }}>
+                  👁️ Visualizar Landing Page
+                </button>
+                <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?imovel=${lastCreatedProperty.id}`);
+                    alert('Link copiado! Compartilhe com seus clientes.');
+                  }}>
+                  📱 Compartilhar Link
+                </button>
+                <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}
+                  onClick={() => { setLastCreatedProperty(null); setActiveTab('imoveis'); }}>
+                  📋 Ver Meus Imóveis
+                </button>
+              </div>
             </div>
           </div>
         )}
