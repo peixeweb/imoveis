@@ -413,15 +413,17 @@ export default function App() {
       return <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontFamily: 'system-ui, sans-serif', fontSize: '18px' }}>Imóvel não encontrado</div>;
     }
     return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', flexDirection: 'column', width: '100%' }}>
+      <div style={{ minHeight: '100vh', backgroundImage: 'url(/imoveis/fundo_do_projeto.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', flexDirection: 'column', width: '100%', position: 'relative' }}>
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(248, 250, 252, 0.85)', zIndex: 0 }}></div>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1 }}>
         {/* Hero com fotos */}
-        <div style={{ background: '#0f172a', color: 'white', padding: '32px 16px 24px', textAlign: 'center' }}>
+        <div style={{ background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(8px)', color: 'white', padding: '32px 16px 24px', textAlign: 'center' }}>
           <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>{property.title}</h1>
           <p style={{ fontSize: '13px', opacity: 0.7, margin: 0 }}>{property.location}</p>
         </div>
 
         {/* Galeria */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '24px 16px', background: '#f1f5f9' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '24px 16px', background: 'transparent' }}>
           {(property.images?.length > 0 ? property.images : [{ url: property.image, ratio: '1:1' }]).map((img, idx) => (
             <div key={idx} style={{
               width: '100%', maxWidth: '400px',
@@ -454,7 +456,7 @@ export default function App() {
         </div>
 
         {/* Informações do imóvel */}
-        <div style={{ padding: '24px 16px', background: 'white', margin: '0 16px', borderRadius: '12px', marginTop: '-8px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div style={{ padding: '24px 16px', background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(12px)', margin: '0 16px', borderRadius: '12px', marginTop: '-8px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           <div style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>
             {property.price.startsWith('R$') ? property.price : `R$ ${property.price}`}
           </div>
@@ -478,7 +480,7 @@ export default function App() {
         </div>
 
         {/* Copy de vendas dinâmica */}
-        <div style={{ padding: '24px 16px', background: 'white', margin: '16px 16px 0', borderRadius: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div style={{ padding: '24px 16px', background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(12px)', margin: '16px 16px 0', borderRadius: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           <div style={{ fontSize: '15px', color: '#334155', lineHeight: 1.7 }}>
             <p style={{ marginBottom: '12px' }}>
               <strong style={{ color: '#1e3a8a' }}>Oportunidade única!</strong> {property.title} localizado em {property.location}. 
@@ -528,9 +530,10 @@ export default function App() {
         </div>
 
         {/* Footer */}
-        <div style={{ marginTop: 'auto', padding: '16px', textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>
+        <div style={{ marginTop: 'auto', padding: '16px', textAlign: 'center', fontSize: '11px', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(8px)' }}>
           ImobiFlow — Plataforma de Leads Imobiliários
         </div>
+      </div>
       </div>
     );
   }
