@@ -17,7 +17,8 @@ import {
   UserCheck,
   Building,
   Layers,
-  ArrowUpRight
+  ArrowUpRight,
+  Trash2
 } from 'lucide-react';
 
 export default function App() {
@@ -43,12 +44,7 @@ export default function App() {
   }, []);
   
   // Lista de Corretores da equipe (Roleta)
-  const [brokers, setBrokers] = useState([
-    { id: 1, name: 'Roberto Silva', status: 'Disponível', leadsCount: 14, color: '#3b82f6', creci: 'CRECI-DF 12345' },
-    { id: 2, name: 'Ana Paula Costa', status: 'Disponível', leadsCount: 18, color: '#10b981', creci: 'CRECI-DF 67890' },
-    { id: 3, name: 'Marcos Oliveira', status: 'Disponível', leadsCount: 11, color: '#f59e0b', creci: 'CRECI-DF 54321' },
-    { id: 4, name: 'Patricia Souza', status: 'Ausente', leadsCount: 9, color: '#ef4444', creci: 'CRECI-DF 09876' }
-  ]);
+  const [brokers, setBrokers] = useState([]);
 
   const [roundRobinIndex, setRoundRobinIndex] = useState(0);
 
@@ -61,11 +57,7 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {}
-    return [
-      { id: '1', title: 'Sobrado de Alto Padrão - Taquari', price: 'R$ 1.350.000', location: 'Lago Norte, Brasília - DF', mapsLink: 'https://maps.app.goo.gl/example1', specs: '4 Quartos | 5 Banheiros | 3 Vagas', image: '/gemini_casa.png', images: [{ url: '/gemini_casa.png', ratio: '1:1' }, { url: '/creativo_casa.png', ratio: '9:16' }], rule: 'CPF Regular', leadsCount: 12, brokerName: 'Roberto Silva', brokerCreci: 'CRECI-DF 12345', brokerWhatsapp: '5561992384758' },
-      { id: '2', title: 'Galpão Comercial Modular', price: 'R$ 3.800.000', location: 'Setor de Indústrias, Brasília - DF', mapsLink: 'https://maps.app.goo.gl/example2', specs: '1200 m² | 4 Docas | Escritório', image: '/casa_certa.png', images: [{ url: '/casa_certa.png', ratio: '1:1' }, { url: '/casa_certa.png', ratio: '9:16' }], rule: 'CNPJ Ativo', leadsCount: 5, brokerName: 'Ana Paula Costa', brokerCreci: 'CRECI-DF 67890', brokerWhatsapp: '5561988472948' },
-      { id: '3', title: 'Apartamento Vista Lago', price: 'R$ 780.000', location: 'Sudoeste, Brasília - DF', mapsLink: 'https://maps.app.goo.gl/example3', specs: '2 Quartos | 1 Suíte | 2 Vagas', image: '/casacerta_sem_marca.png', images: [{ url: '/casacerta_sem_marca.png', ratio: '1:1' }, { url: '/casacerta_sem_marca.png', ratio: '9:16' }], rule: 'CPF Regular', leadsCount: 22, brokerName: 'Marcos Oliveira', brokerCreci: 'CRECI-DF 54321', brokerWhatsapp: '5561991823746' }
-    ];
+    return [];
   });
 
   useEffect(() => {
@@ -73,60 +65,7 @@ export default function App() {
   }, [properties]);
 
   // Lista de Leads cadastrados/recebidos
-  const [leads, setLeads] = useState([
-    {
-      id: 'L01',
-      name: 'Carlos Albuquerque',
-      document: '423.859.102-34',
-      docType: 'CPF',
-      docStatus: 'Regular',
-      propertyName: 'Sobrado de Alto Padrão - Taquari',
-      brokerName: 'Roberto Silva',
-      brokerCreci: 'CRECI-DF 12345',
-      stage: 'Em Atendimento',
-      date: '19/07/2026',
-      whatsapp: '61992384758'
-    },
-    {
-      id: 'L02',
-      name: 'Nova Aliança Alimentos Ltda',
-      document: '12.845.928/0001-20',
-      docType: 'CNPJ',
-      docStatus: 'Regular',
-      propertyName: 'Galpão Comercial Modular',
-      brokerName: 'Ana Paula Costa',
-      brokerCreci: 'CRECI-DF 67890',
-      stage: 'Novo',
-      date: '19/07/2026',
-      whatsapp: '61988472948'
-    },
-    {
-      id: 'L03',
-      name: 'Mariana Pires',
-      document: '098.283.483-20',
-      docType: 'CPF',
-      docStatus: 'Regular',
-      propertyName: 'Apartamento Vista Lago',
-      brokerName: 'Marcos Oliveira',
-      brokerCreci: 'CRECI-DF 54321',
-      stage: 'Proposta',
-      date: '18/07/2026',
-      whatsapp: '61991823746'
-    },
-    {
-      id: 'L04',
-      name: 'ConstruMais Engenharia',
-      document: '44.829.390/0001-99',
-      docType: 'CNPJ',
-      docStatus: 'Irregular / Inativo',
-      propertyName: 'Galpão Comercial Modular',
-      brokerName: 'Sistema (Barrado)',
-      brokerCreci: '',
-      stage: 'Perdido',
-      date: '17/07/2026',
-      whatsapp: '61985736452'
-    }
-  ]);
+  const [leads, setLeads] = useState([]);
 
   // Novo imóvel form state
   const [newProperty, setNewProperty] = useState({
@@ -234,6 +173,20 @@ export default function App() {
       brokerWhatsapp: ''
     });
     setActiveTab('landing_sucesso');
+  };
+
+  // Deletar imóvel
+  const handleDeleteProperty = (id) => {
+    if (window.confirm('Excluir este imóvel?')) {
+      setProperties(prev => prev.filter(p => p.id !== id));
+    }
+  };
+
+  // Deletar lead
+  const handleDeleteLead = (id) => {
+    if (window.confirm('Excluir este lead?')) {
+      setLeads(prev => prev.filter(l => l.id !== id));
+    }
   };
 
   // Alterar estágio do lead no Kanban
@@ -779,6 +732,22 @@ export default function App() {
             <Play size={16} />
             Simulador de Lead
           </button>
+          <button
+            className="btn btn-secondary"
+            style={{ width: '100%', justifyContent: 'center', marginTop: '8px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
+            onClick={() => {
+              if (window.confirm('Tem certeza? Isso vai apagar TODOS os imóveis, leads e corretores cadastrados.')) {
+                setProperties([]);
+                setLeads([]);
+                setBrokers([]);
+                localStorage.removeItem('imobiflow_properties');
+                setActiveTab('dashboard');
+              }
+            }}
+          >
+            <Trash2 size={16} />
+            Limpar Todos os Dados
+          </button>
         </div>
       </aside>
 
@@ -1013,6 +982,13 @@ export default function App() {
                           }}
                         >
                           Ver Landing
+                        </button>
+                        <button 
+                          className="btn btn-secondary" 
+                          style={{ padding: '6px 10px', fontSize: '11px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                          onClick={() => handleDeleteProperty(property.id)}
+                        >
+                          Excluir
                         </button>
                       </div>
                     </div>
@@ -1443,6 +1419,7 @@ export default function App() {
                       <th>Imóvel Solicitado</th>
                       <th>Corretor Atribuído</th>
                       <th>Estágio Atual</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1484,6 +1461,17 @@ export default function App() {
                             <option value="Fechado">Fechado</option>
                             <option value="Perdido">Perdido</option>
                           </select>
+                        </td>
+                        <td>
+                          <button
+                            onClick={() => handleDeleteLead(lead.id)}
+                            style={{
+                              background: 'none', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444',
+                              borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer'
+                            }}
+                          >
+                            Excluir
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1527,6 +1515,7 @@ export default function App() {
                           Atender <ArrowRight size={12} />
                         </a>
                       </div>
+                      <button onClick={() => handleDeleteLead(lead.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '10px', cursor: 'pointer', padding: '4px 0 0', textAlign: 'left' }}>Excluir</button>
                     </div>
                   ))}
                 </div>
@@ -1553,6 +1542,7 @@ export default function App() {
                           Proposta <ArrowRight size={12} />
                         </a>
                       </div>
+                      <button onClick={() => handleDeleteLead(lead.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '10px', cursor: 'pointer', padding: '4px 0 0', textAlign: 'left' }}>Excluir</button>
                     </div>
                   ))}
                 </div>
@@ -1579,6 +1569,7 @@ export default function App() {
                           Fechar Venda! <ArrowRight size={12} />
                         </a>
                       </div>
+                      <button onClick={() => handleDeleteLead(lead.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '10px', cursor: 'pointer', padding: '4px 0 0', textAlign: 'left' }}>Excluir</button>
                     </div>
                   ))}
                 </div>
@@ -1603,6 +1594,7 @@ export default function App() {
                         <span style={{ color: '#10b981', fontWeight: 'bold' }}>🎉 Venda Fechada!</span>
                         <a onClick={() => handleMoveLead(lead.id, 'Proposta')} style={{ color: 'var(--muted)', cursor: 'pointer' }}>Reabrir</a>
                       </div>
+                      <button onClick={() => handleDeleteLead(lead.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '10px', cursor: 'pointer', padding: '4px 0 0', textAlign: 'left' }}>Excluir</button>
                     </div>
                   ))}
                 </div>
@@ -1627,6 +1619,7 @@ export default function App() {
                         <span className="badge badge-danger" style={{ fontSize: '10px' }}>Inativo/Desqualificado</span>
                         <a onClick={() => handleMoveLead(lead.id, 'Novo')} style={{ color: 'var(--muted)', cursor: 'pointer' }}>Reativar</a>
                       </div>
+                      <button onClick={() => handleDeleteLead(lead.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '10px', cursor: 'pointer', padding: '4px 0 0', textAlign: 'left' }}>Excluir</button>
                     </div>
                   ))}
                 </div>
