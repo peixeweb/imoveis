@@ -386,6 +386,7 @@ ESCORE: número (${INCOME_FAIXAS.map(f => f.escore).join(', ')})
     setSimStep(0);
     setChatMessages([]);
     setTypedMessage('');
+    setPublicLeadName('');
   };
 
   // Contagem de leads por estágio
@@ -393,6 +394,7 @@ ESCORE: número (${INCOME_FAIXAS.map(f => f.escore).join(', ')})
 
   // ===== GROQ PARA CHAT PÚBLICO =====
   const [groqHistory, setGroqHistory] = useState([]);
+  const [publicLeadName, setPublicLeadName] = useState('');
 
   const handlePublicSendMessage = async (e) => {
     e.preventDefault();
@@ -404,11 +406,60 @@ ESCORE: número (${INCOME_FAIXAS.map(f => f.escore).join(', ')})
     setIsTyping(true);
 
     const prop = selectedProperty;
+    const fail = () => { setIsTyping(false); };
+
+    // Se não tem API key, usa fluxo local
+    if (!GROQ_API_KEY) {
+      if (!publicLeadName) {
+        setPublicLeadName(userMsg);
+        const faixasTexto = INCOME_FAIXAS.map((f, i) => `*${i + 1}* — ${f.label}`).join('\n');
+        addBotMessage(`Ótimo, **${userMsg}**! Agora me diga qual a sua **faixa de renda mensal**:\n\n${faixasTexto}\n\nDigite apenas o número correspondente.`);
+        setIsTyping(false);
+        return;
+      }
+      const index = parseInt(userMsg) - 1;
+      const faixaEscolhida = INCOME_FAIXAS[index];
+      if (!faixaEscolhida) {
+        const faixasTexto = INCOME_FAIXAS.map((f, i) => `*${i + 1}* — ${f.label}`).join('\n');
+        addBotMessage(`Opção inválida. Digite o número da sua faixa de renda:\n\n${faixasTexto}`);
+        setIsTyping(false);
+        return;
+      }
+      const minEscore = getMinEscore(prop?.rule);
+      const isQualified = faixaEscolhida.escore >= minEscore;
+      if (!isQualified) {
+        addBotMessage(`📊 **Análise de Perfil**\n\n**Nome:** ${publicLeadName}\n**Renda:** ${faixaEscolhida.label}\n**Escore:** ${faixaEscolhida.escore} pts\n**Mínimo exigido:** ${minEscore} pts\n\nInfelizmente seu perfil não atende aos critérios de renda para este imóvel. Agradecemos pelo interesse! 🙏`);
+        setTimeout(() => {
+          setLeads(prev => [{ id: 'L' + (prev.length + 1).toString().padStart(2, '0'), name: publicLeadName, document: faixaEscolhida.value, docType: `Escore ${faixaEscolhida.escore}`, docStatus: 'Inválido p/ Imóvel', propertyName: prop?.title || '', brokerName: 'Sistema (Desqualificado)', brokerCreci: '', stage: 'Perdido', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999998888' }, ...prev]);
+          setSimStep(6);
+        }, 2000);
+        setIsTyping(false);
+        return;
+      }
+      let assignedBroker;
+      if (accountMode === 'solo') {
+        assignedBroker = { name: soloProfile.name, id: 'solo', creci: soloProfile.creci };
+      } else {
+        const available = brokers.filter(b => b.status === 'Disponível');
+        assignedBroker = available.length > 0 ? available[0] : { name: 'Equipe', id: 'team', creci: '' };
+      }
+      addBotMessage(`📊 **Análise de Perfil**\n\n**Nome:** ${publicLeadName}\n**Renda:** ${faixaEscolhida.label}\n**Escore:** ${faixaEscolhida.escore} pts\n\n✅ **Perfil Aprovado!**`);
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, { sender: 'bot', text: `Parabéns **${publicLeadName}**! Seu perfil foi aprovado! Agora é só clicar no botão abaixo e falar diretamente com **${assignedBroker.name}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
+        setLeads(prev => [{ id: 'L' + (prev.length + 1).toString().padStart(2, '0'), name: publicLeadName, document: faixaEscolhida.value, docType: `Escore ${faixaEscolhida.escore}`, docStatus: 'Regular', propertyName: prop?.title || '', brokerName: assignedBroker.name, brokerCreci: assignedBroker.creci || '', stage: 'Novo', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999997777' }, ...prev]);
+        if (accountMode === 'team' && assignedBroker.id !== 'team') { setBrokers(prev => prev.map(b => b.id === assignedBroker.id ? { ...b, leadsCount: b.leadsCount + 1 } : b)); }
+        if (prop) { setProperties(prev => prev.map(p => p.id === prop.id ? { ...p, leadsCount: p.leadsCount + 1 } : p)); }
+        setSimStep(6);
+      }, 1500);
+      setIsTyping(false);
+      return;
+    }
+
+    // Fluxo com Groq
     const updatedHistory = [...groqHistory, { role: 'user', content: userMsg }];
     setGroqHistory(updatedHistory);
 
     const minEscore = getMinEscore(prop?.rule);
-
     const faixasStr = INCOME_FAIXAS.map(f => `- ${f.label}: "${f.value}" → Escore ${f.escore}`).join('\n');
 
     const systemPrompt = `Você é a "IA" da ImobiFlow, assistente virtual de uma imobiliária. Seu papel é QUALIFICAR leads.
@@ -441,14 +492,12 @@ NÃO escreva mais nada depois disso.`;
 
     const dataMatch = response.match(/---DADOS_LEAD---\n([\s\S]*?)---FIM_DADOS---/);
     if (dataMatch) {
-      // Só mostra a resposta se ela contém dados estruturados
       const cleanResponse = response.replace(/---DADOS_LEAD---[\s\S]*?---FIM_DADOS---/, '').trim();
       if (cleanResponse) {
         setChatMessages(prev => [...prev, { sender: 'bot', text: cleanResponse, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
         setGroqHistory(prev => [...prev, { role: 'assistant', content: cleanResponse }]);
       }
     } else {
-      // Resposta normal (ainda coletando dados)
       setChatMessages(prev => [...prev, { sender: 'bot', text: response, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
       setGroqHistory(prev => [...prev, { role: 'assistant', content: response }]);
       return;
@@ -478,40 +527,23 @@ NÃO escreva mais nada depois disso.`;
     if (!isQualified) {
       setChatMessages(prev => [...prev, { sender: 'bot', text: `Infelizmente seu perfil não atende aos critérios de renda para este imóvel. Agradecemos pelo interesse!`, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
       setIsTyping(false);
-      setLeads(prev => [{
-        id: 'L' + (prev.length + 1).toString().padStart(2, '0'),
-        name: nome, document: renda, docType: `Escore ${leadEscore}`,
-        docStatus: 'Inválido p/ Imóvel', propertyName: prop?.title || '',
-        brokerName: 'Sistema (Desqualificado)', brokerCreci: '',
-        stage: 'Perdido', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999998888'
-      }, ...prev]);
+      setLeads(prev => [{ id: 'L' + (prev.length + 1).toString().padStart(2, '0'), name: nome, document: renda, docType: `Escore ${leadEscore}`, docStatus: 'Inválido p/ Imóvel', propertyName: prop?.title || '', brokerName: 'Sistema (Desqualificado)', brokerCreci: '', stage: 'Perdido', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999998888' }, ...prev]);
       setSimStep(6);
       return;
     }
 
-    // Qualificado — processa em background
     let assignedBroker;
     if (accountMode === 'solo') {
       assignedBroker = { name: soloProfile.name, id: 'solo', creci: soloProfile.creci };
     } else {
       const available = brokers.filter(b => b.status === 'Disponível');
-      assignedBroker = available.length > 0
-        ? available[0]
-        : { name: 'Equipe', id: 'team', creci: '' };
+      assignedBroker = available.length > 0 ? available[0] : { name: 'Equipe', id: 'team', creci: '' };
     }
 
     setChatMessages(prev => [...prev, { sender: 'bot', text: `Parabéns **${nome}**! Seu perfil foi aprovado! Agora é só clicar no botão abaixo e falar diretamente com **${assignedBroker.name}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
     setIsTyping(false);
-    setLeads(prev => [{
-      id: 'L' + (prev.length + 1).toString().padStart(2, '0'),
-      name: nome, document: renda, docType: `Escore ${leadEscore}`,
-      docStatus: 'Regular', propertyName: prop?.title || '',
-      brokerName: assignedBroker.name, brokerCreci: assignedBroker.creci || '',
-      stage: 'Novo', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999997777'
-    }, ...prev]);
-    if (accountMode === 'team' && assignedBroker.id !== 'team') {
-      setBrokers(prev => prev.map(b => b.id === assignedBroker.id ? { ...b, leadsCount: b.leadsCount + 1 } : b));
-    }
+    setLeads(prev => [{ id: 'L' + (prev.length + 1).toString().padStart(2, '0'), name: nome, document: renda, docType: `Escore ${leadEscore}`, docStatus: 'Regular', propertyName: prop?.title || '', brokerName: assignedBroker.name, brokerCreci: assignedBroker.creci || '', stage: 'Novo', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999997777' }, ...prev]);
+    if (accountMode === 'team' && assignedBroker.id !== 'team') { setBrokers(prev => prev.map(b => b.id === assignedBroker.id ? { ...b, leadsCount: b.leadsCount + 1 } : b)); }
     if (prop) { setProperties(prev => prev.map(p => p.id === prop.id ? { ...p, leadsCount: p.leadsCount + 1 } : p)); }
     setSimStep(6);
   };
