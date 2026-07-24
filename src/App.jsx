@@ -26,8 +26,9 @@ const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || localStorage.getItem('
 
 const INCOME_FAIXAS = [
   { value: 'Até R$ 3.000', escore: 25, label: 'Até R$ 3.000' },
-  { value: 'R$ 3.001 a R$ 5.000', escore: 50, label: 'De R$ 3.001 a R$ 5.000' },
-  { value: 'R$ 5.001 a R$ 10.000', escore: 75, label: 'De R$ 5.001 a R$ 10.000' },
+  { value: 'R$ 3.000 a R$ 5.000', escore: 50, label: 'R$ 3.000 a R$ 5.000' },
+  { value: 'R$ 5.000 a R$ 7.000', escore: 75, label: 'R$ 5.000 a R$ 7.000' },
+  { value: 'R$ 7.000 a R$ 10.000', escore: 100, label: 'R$ 7.000 a R$ 10.000' },
   { value: 'Acima de R$ 10.000', escore: 100, label: 'Acima de R$ 10.000' },
 ];
 
@@ -270,13 +271,14 @@ FAIXAS DE RENDA:
 ${faixasStr}
 
 REGRAS:
-- Apenas rendas a partir de R$ 3.000 são aprovadas. Renda abaixo de R$ 3.000 é REPROVADA.
+- Apenas rendas a partir de R$ 3.000 (faixas de R$ 3.000 a R$ 5.000, R$ 5.000 a R$ 7.000, R$ 7.000 a R$ 10.000 e Acima de R$ 10.000) são aprovadas. Renda abaixo de R$ 3.000 é REPROVADA.
 INSTRUÇÕES:
 - Fale português brasileiro, seja educado e breve.
-- Apresente-se, pergunte o nome do lead e descubra a faixa de renda mensal.
-- Quando tiver TODOS os dados (nome + renda), finalize com:
+- Apresente-se, pergunte o NOME, a PROFISSÃO e a faixa de RENDA MENSAL do lead.
+- Quando tiver TODOS os dados (nome + profissão + renda), finalize com:
 ---DADOS_LEAD---
 NOME: nome completo
+PROFISSAO: profissão
 RENDA: faixa (${INCOME_FAIXAS.map(f => `"${f.value}"`).join(', ')})
 ESCORE: número (${INCOME_FAIXAS.map(f => f.escore).join(', ')})
 ---FIM_DADOS---`;
@@ -420,18 +422,19 @@ ${faixasStr}
 
 REGRAS OBRIGATÓRIAS:
 1. Converse em português brasileiro, seja educado e breve.
-2. Pergunte o NOME e a RENDA MENSAL do lead.
+2. Pergunte o NOME, a PROFISSÃO e a RENDA MENSAL do lead.
 3. Determine a faixa de renda e o escore correspondente.
-4. ***REGRAS DE APROVAÇÃO***: Apenas rendas a partir de R$ 3.000 são aprovadas. Renda abaixo de R$ 3.000 (Escore 25) é REPROVADA automaticamente.
-5. ***IMPORTANTE***: Quando tiver NOME + RENDA, sua resposta deve terminar EXATAMENTE com:
+4. ***REGRAS DE APROVAÇÃO***: Apenas rendas a partir de R$ 3.000 (faixas R$ 3.000 a R$ 5.000, R$ 5.000 a R$ 7.000, R$ 7.000 a R$ 10.000 e Acima de R$ 10.000) são aprovadas. Renda abaixo de R$ 3.000 (Escore 25) é REPROVADA automaticamente.
+5. ***IMPORTANTE***: Quando tiver NOME + PROFISSÃO + RENDA, sua resposta deve terminar EXATAMENTE com:
 ---DADOS_LEAD---
 NOME: nome completo
+PROFISSAO: profissão
 RENDA: ${INCOME_FAIXAS.map(f => `"${f.value}"`).join(' ou ')}
 ESCORE: ${INCOME_FAIXAS.map(f => f.escore).join(', ')}
 ---FIM_DADOS---
 NÃO continue a conversa depois disso.`;
 
-    const extractionMsg = `Com base na conversa acima, se você já sabe o NOME e a RENDA do lead, responda APENAS com o formato ---DADOS_LEAD---. Caso falte alguma informação, continue conversando normalmente.`;
+    const extractionMsg = `Com base na conversa acima, se você já sabe o NOME, a PROFISSÃO e a RENDA do lead, responda APENAS com o formato ---DADOS_LEAD---. Caso falte alguma informação, continue conversando normalmente.`;
 
     const response = await groqChat(systemPrompt, [...updatedHistory, { role: 'user', content: extractionMsg }]);
     if (!response) { setIsTyping(false); return; }
@@ -455,6 +458,7 @@ NÃO continue a conversa depois disso.`;
 
     const block = dataMatch[1];
     const nome = block.match(/NOME:\s*(.+)/)?.[1]?.trim();
+    const profissao = block.match(/PROFISSAO:\s*(.+)/)?.[1]?.trim() || '';
     const renda = block.match(/RENDA:\s*(.+)/)?.[1]?.trim();
     const escoreStr = block.match(/ESCORE:\s*(\d+)/)?.[1];
     if (!nome || !renda || !escoreStr) return;
