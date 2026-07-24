@@ -93,6 +93,12 @@ export default function App() {
   const [roundRobinIndex, setRoundRobinIndex] = useState(0);
 
   // Lista de Imóveis cadastrados (persistidos em localStorage)
+  const defaultProperties = [
+    { id: '1', title: 'Apartamento Vista do Lago', price: 'R$ 450.000', location: 'Setor Sudoeste, Brasília - DF', mapsLink: '', specs: '2 Quartos | 1 Suíte | 70m² | 1 Vaga', rule: 'R$ 3.001 a R$ 5.000', images: [{ url: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400', ratio: '4:3' }], image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400', leadsCount: 0, brokerName: 'Roberto Almeida', brokerCreci: 'CRECI-DF 12345', brokerWhatsapp: '5561999990001' },
+    { id: '2', title: 'Cobertura Duplex Park Avenue', price: 'R$ 1.200.000', location: 'Asa Norte, Brasília - DF', mapsLink: '', specs: '4 Quartos | 2 Suítes | 180m² | 2 Vagas', rule: 'R$ 7.001 a R$ 10.000', images: [{ url: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400', ratio: '4:3' }], image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400', leadsCount: 0, brokerName: 'Roberto Almeida', brokerCreci: 'CRECI-DF 12345', brokerWhatsapp: '5561999990001' },
+    { id: '3', title: 'Kitnet Mobiliada Centro', price: 'R$ 180.000', location: 'Setor Central, Brasília - DF', mapsLink: '', specs: '1 Quarto | 30m²', rule: 'Até R$ 3.000', images: [{ url: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400', ratio: '4:3' }], image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400', leadsCount: 0, brokerName: 'Maria Santos', brokerCreci: 'CRECI-DF 54321', brokerWhatsapp: '5561999990002' },
+  ];
+
   const [properties, setProperties] = useState(() => {
     try {
       const saved = localStorage.getItem('imobiflow_properties');
@@ -101,7 +107,7 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {}
-    return [];
+    return defaultProperties;
   });
 
   useEffect(() => {
