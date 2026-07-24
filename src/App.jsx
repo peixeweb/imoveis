@@ -3,7 +3,6 @@ import {
   LayoutDashboard, 
   Home, 
   Users, 
-  Play, 
   Plus, 
   RefreshCw, 
   ArrowRight, 
@@ -20,6 +19,39 @@ import {
   ArrowUpRight,
   Trash2
 } from 'lucide-react';
+
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || localStorage.getItem('groq_api_key') || '';
+
+const INCOME_FAIXAS = [
+  { value: 'Até R$ 3.000', escore: 25, label: 'Até R$ 3.000' },
+  { value: 'R$ 3.001 a R$ 5.000', escore: 50, label: 'De R$ 3.001 a R$ 5.000' },
+  { value: 'R$ 5.001 a R$ 10.000', escore: 75, label: 'De R$ 5.001 a R$ 10.000' },
+  { value: 'Acima de R$ 10.000', escore: 100, label: 'Acima de R$ 10.000' },
+];
+
+function getMinEscore(rule) {
+  const found = INCOME_FAIXAS.find(f => f.value === rule);
+  const escore = found ? found.escore : 25;
+  return escore < 50 ? 50 : escore;
+}
+
+async function groqChat(systemPrompt, messages) {
+  if (!GROQ_API_KEY) return null;
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'system', content: systemPrompt }, ...messages],
+        temperature: 0.7, max_tokens: 500
+      })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || null;
+  } catch { return null; }
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -42,6 +74,17 @@ export default function App() {
       setIsPublicView(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (isPublicView) {
+      const timer = setTimeout(() => {
+        if (typeof simStep !== 'undefined' && simStep === 0) {
+          handleStartSimChat();
+        }
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isPublicView]);
   
   // Lista de Corretores da equipe (Roleta)
   const [brokers, setBrokers] = useState([]);
@@ -74,7 +117,7 @@ export default function App() {
     location: '',
     mapsLink: '',
     specs: '',
-    rule: 'CPF Regular',
+    rule: 'R$ 3.001 a R$ 5.000',
     images: [],
     brokerName: '',
     brokerCreci: '',
@@ -166,7 +209,7 @@ export default function App() {
       location: '',
       mapsLink: '',
       specs: '',
-      rule: 'CPF Regular',
+      rule: 'R$ 3.001 a R$ 5.000',
       images: [],
       brokerName: '',
       brokerCreci: '',
@@ -204,12 +247,55 @@ export default function App() {
   };
 
   // Iniciar Simulação do WhatsApp
-  const handleStartSimChat = () => {
+  const handleStartSimChat = async () => {
     setSimStep(1);
+    const prop = selectedProperty;
+    if (!prop) return;
+
+    // Public view: usa Groq para saudação inicial
+    if (isPublicView) {
+      const minEscore = getMinEscore(prop.rule);
+      const faixasStr = INCOME_FAIXAS.map(f => `- ${f.value} → Escore ${f.escore}`).join('\n');
+
+      const systemPrompt = `Você é a "IA" da ImobiFlow, assistente virtual de uma imobiliária.
+
+IMÓVEL: ${prop.title}
+VALOR: ${prop.price}
+REGRAS: ${prop.rule} (escore mínimo: ${minEscore})
+
+FAIXAS DE RENDA:
+${faixasStr}
+
+REGRAS:
+- Apenas rendas a partir de R$ 3.000 são aprovadas. Renda abaixo de R$ 3.000 é REPROVADA.
+INSTRUÇÕES:
+- Fale português brasileiro, seja educado e breve.
+- Apresente-se, pergunte o nome do lead e descubra a faixa de renda mensal.
+- Quando tiver TODOS os dados (nome + renda), finalize com:
+---DADOS_LEAD---
+NOME: nome completo
+RENDA: faixa (${INCOME_FAIXAS.map(f => `"${f.value}"`).join(', ')})
+ESCORE: número (${INCOME_FAIXAS.map(f => f.escore).join(', ')})
+---FIM_DADOS---`;
+
+      const greeting = await groqChat(systemPrompt, [
+        { role: 'user', content: 'Inicie o atendimento para qualificar um lead para este imóvel.' }
+      ]);
+
+      if (greeting) {
+        setChatMessages([
+          { sender: 'bot', text: greeting, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }
+        ]);
+        setGroqHistory([{ role: 'assistant', content: greeting }]);
+        setSimStep(2);
+        return;
+      }
+    }
+
+    // Fallback padrão (admin simulator ou se Groq falhar)
     setChatMessages([
-      { sender: 'bot', text: `Olá! Seja bem-vindo ao portal de atendimento do imóvel *${selectedProperty.title}*.`, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }
+      { sender: 'bot', text: `Olá! Seja bem-vindo ao portal de atendimento do imóvel *${prop.title}*.`, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }
     ]);
-    
     setTimeout(() => {
       addBotMessage("Para podermos direcionar você ao corretor especialista ideal, preciso validar algumas informações. Você deseja atendimento como Pessoa Física ou Pessoa Jurídica?\n\nDigite *1* para **Pessoa Física (CPF)**\nDigite *2* para **Pessoa Jurídica (CNPJ)**", 500);
       setSimStep(2);
@@ -359,16 +445,135 @@ export default function App() {
   // Contagem de leads por estágio
   const getLeadsByStage = (stage) => leads.filter(l => l.stage === stage);
 
+  // ===== GROQ PARA CHAT PÚBLICO =====
+  const [groqHistory, setGroqHistory] = useState([]);
+
+  const handlePublicSendMessage = async (e) => {
+    e.preventDefault();
+    if (!typedMessage.trim() || isTyping) return;
+
+    const userMsg = typedMessage.trim();
+    setChatMessages(prev => [...prev, { sender: 'lead', text: userMsg, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
+    setTypedMessage('');
+    setIsTyping(true);
+
+    const prop = selectedProperty;
+    const updatedHistory = [...groqHistory, { role: 'user', content: userMsg }];
+    setGroqHistory(updatedHistory);
+
+    const minEscore = getMinEscore(prop?.rule);
+
+    const faixasStr = INCOME_FAIXAS.map(f => `- ${f.label}: "${f.value}" → Escore ${f.escore}`).join('\n');
+
+    const systemPrompt = `Você é a "IA" da ImobiFlow, assistente virtual de uma imobiliária. Seu papel é QUALIFICAR leads.
+
+IMÓVEL: ${prop?.title || 'Imóvel'}
+VALOR: ${prop?.price || 'Consultar'}
+REGRAS: ${prop?.rule || 'Até R$ 3.000'} (escore mínimo: ${minEscore})
+
+FAIXAS DE RENDA (use exatamente estes valores):
+${faixasStr}
+
+REGRAS OBRIGATÓRIAS:
+1. Converse em português brasileiro, seja educado e breve.
+2. Pergunte o NOME e a RENDA MENSAL do lead.
+3. Determine a faixa de renda e o escore correspondente.
+4. ***REGRAS DE APROVAÇÃO***: Apenas rendas a partir de R$ 3.000 são aprovadas. Renda abaixo de R$ 3.000 (Escore 25) é REPROVADA automaticamente.
+5. ***IMPORTANTE***: Quando tiver NOME + RENDA, sua resposta deve terminar EXATAMENTE com:
+---DADOS_LEAD---
+NOME: nome completo
+RENDA: ${INCOME_FAIXAS.map(f => `"${f.value}"`).join(' ou ')}
+ESCORE: ${INCOME_FAIXAS.map(f => f.escore).join(', ')}
+---FIM_DADOS---
+NÃO continue a conversa depois disso.`;
+
+    const extractionMsg = `Com base na conversa acima, se você já sabe o NOME e a RENDA do lead, responda APENAS com o formato ---DADOS_LEAD---. Caso falte alguma informação, continue conversando normalmente.`;
+
+    const response = await groqChat(systemPrompt, [...updatedHistory, { role: 'user', content: extractionMsg }]);
+    if (!response) { setIsTyping(false); return; }
+
+    setIsTyping(false);
+
+    const dataMatch = response.match(/---DADOS_LEAD---\n([\s\S]*?)---FIM_DADOS---/);
+    if (dataMatch) {
+      // Só mostra a resposta se ela contém dados estruturados
+      const cleanResponse = response.replace(/---DADOS_LEAD---[\s\S]*?---FIM_DADOS---/, '').trim();
+      if (cleanResponse) {
+        setChatMessages(prev => [...prev, { sender: 'bot', text: cleanResponse, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
+        setGroqHistory(prev => [...prev, { role: 'assistant', content: cleanResponse }]);
+      }
+    } else {
+      // Resposta normal (ainda coletando dados)
+      setChatMessages(prev => [...prev, { sender: 'bot', text: response, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
+      setGroqHistory(prev => [...prev, { role: 'assistant', content: response }]);
+      return;
+    }
+
+    const block = dataMatch[1];
+    const nome = block.match(/NOME:\s*(.+)/)?.[1]?.trim();
+    const renda = block.match(/RENDA:\s*(.+)/)?.[1]?.trim();
+    const escoreStr = block.match(/ESCORE:\s*(\d+)/)?.[1];
+    if (!nome || !renda || !escoreStr) return;
+
+    const leadEscore = parseInt(escoreStr);
+    const faixa = INCOME_FAIXAS.find(f => f.value === renda);
+    if (!faixa) return;
+
+    const isQualified = leadEscore >= minEscore;
+
+    if (!isQualified) {
+      setChatMessages(prev => [...prev, { sender: 'bot', text: `Infelizmente seu perfil não atende aos critérios de renda para este imóvel. Agradecemos pelo interesse!`, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
+      setIsTyping(false);
+      setLeads(prev => [{
+        id: 'L' + (prev.length + 1).toString().padStart(2, '0'),
+        name: nome, document: renda, docType: `Escore ${leadEscore}`,
+        docStatus: 'Inválido p/ Imóvel', propertyName: prop?.title || '',
+        brokerName: 'Sistema (Desqualificado)', brokerCreci: '',
+        stage: 'Perdido', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999998888'
+      }, ...prev]);
+      setSimStep(6);
+      return;
+    }
+
+    // Qualificado — processa em background
+    let assignedBroker;
+    if (accountMode === 'solo') {
+      assignedBroker = { name: soloProfile.name, id: 'solo', creci: soloProfile.creci };
+    } else {
+      const available = brokers.filter(b => b.status === 'Disponível');
+      assignedBroker = available.length > 0
+        ? available[0]
+        : { name: 'Equipe', id: 'team', creci: '' };
+    }
+
+    setChatMessages(prev => [...prev, { sender: 'bot', text: `Parabéns **${nome}**! Seu perfil foi aprovado! Agora é só clicar no botão abaixo e falar diretamente com **${assignedBroker.name}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
+    setIsTyping(false);
+    setLeads(prev => [{
+      id: 'L' + (prev.length + 1).toString().padStart(2, '0'),
+      name: nome, document: renda, docType: `Escore ${leadEscore}`,
+      docStatus: 'Regular', propertyName: prop?.title || '',
+      brokerName: assignedBroker.name, brokerCreci: assignedBroker.creci || '',
+      stage: 'Novo', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999997777'
+    }, ...prev]);
+    if (accountMode === 'team' && assignedBroker.id !== 'team') {
+      setBrokers(prev => prev.map(b => b.id === assignedBroker.id ? { ...b, leadsCount: b.leadsCount + 1 } : b));
+    }
+    if (prop) { setProperties(prev => prev.map(p => p.id === prop.id ? { ...p, leadsCount: p.leadsCount + 1 } : p)); }
+    setSimStep(6);
+  };
+
   // ===== PUBLIC LANDING PAGE =====
   if (isPublicView) {
     const property = selectedProperty;
     if (!property) {
       return <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontFamily: 'system-ui, sans-serif', fontSize: '18px' }}>Imóvel não encontrado</div>;
     }
+    const isQualified = chatMessages.some(m => m.sender === 'bot' && m.text.includes('perfil foi aprovado'));
+    const brokerWa = property.brokerWhatsapp || soloProfile.whatsapp || (brokers.find(b => b.name === property.brokerName)?.whatsapp) || '559999999999';
     return (
-      <div style={{ minHeight: '100vh', backgroundImage: 'url(/imoveis/sao_paulo.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', flexDirection: 'column', width: '100%', position: 'relative' }}>
+      <div style={{ height: '100vh', backgroundImage: 'url(/imoveis/sao_paulo.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', width: '100%', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(248, 250, 252, 0.85)', zIndex: 0 }}></div>
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'auto' }}>
         {/* Hero com fotos */}
         <div style={{ background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(8px)', color: 'white', padding: '32px 16px 24px', textAlign: 'center' }}>
           <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>{property.title}</h1>
@@ -441,8 +646,8 @@ export default function App() {
               Acabamento impecável, áreas sociais integradas, segurança reforçada e excelente iluminação natural.
             </p>
             <p style={{ marginBottom: '12px' }}>
-              {property.rule === 'CNPJ Ativo' 
-                ? 'Ideal para sua empresa se estabelecer com toda a infraestrutura necessária. Localização estratégica para alavancar seus negócios.'
+              {getMinEscore(property.rule) >= 75
+                ? 'Imóvel de alto padrão. Verifique se sua renda atende aos critérios de qualificação.'
                 : 'Perfeito para sua família viver com qualidade, segurança e conforto. Agende sua visita e encante-se!'}
             </p>
             <p style={{ fontWeight: 600, color: '#0f172a' }}>
@@ -451,41 +656,103 @@ export default function App() {
           </div>
         </div>
 
-        {/* Corretor / CTA */}
-        <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+        {/* Corretor info */}
+        <div style={{ padding: '24px 16px', textAlign: 'center', marginTop: 'auto' }}>
           {property.brokerName && (
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Seu corretor responsável</div>
-              <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '16px' }}>{property.brokerName}</div>
-              <div style={{ fontSize: '13px', color: '#64748b' }}>{property.brokerCreci}</div>
+            <div style={{ marginBottom: '8px' }}>
+              <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '2px' }}>Seu corretor responsável</div>
+              <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '15px' }}>{property.brokerName}</div>
+              <div style={{ fontSize: '12px', color: '#64748b' }}>{property.brokerCreci}</div>
             </div>
           )}
-          <a
-            href={`https://wa.me/${property.brokerWhatsapp || soloProfile.whatsapp || '559999999999'}?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel: ${property.title} - ${property.price}`)}`}
-            target="_blank" rel="noopener noreferrer"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-              width: '100%', maxWidth: '360px', margin: '0 auto',
-              padding: '16px 24px', borderRadius: '12px',
-              background: 'linear-gradient(135deg, #25d366, #128C7E)',
-              color: 'white', fontWeight: 700, fontSize: '17px',
-              textDecoration: 'none', boxShadow: '0 4px 16px rgba(37, 211, 102, 0.3)',
-              transition: 'transform 0.2s'
-            }}
-            onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
-            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-          >
-            💬 Falar com o Corretor
-          </a>
-          <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '12px' }}>
-            Clique no botão acima para falar diretamente com o corretor no WhatsApp
+          <p style={{ fontSize: '11px', color: '#94a3b8' }}>
+            {simStep === 0 ? 'Preparando atendimento...' : '💬 Chat aberto no canto inferior direito'}
           </p>
         </div>
 
         {/* Footer */}
-        <div style={{ marginTop: 'auto', padding: '16px', textAlign: 'center', fontSize: '11px', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(8px)' }}>
+        <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(8px)' }}>
           ImobiFlow — Plataforma de Leads Imobiliários
         </div>
+      </div>
+
+      {/* RIGHT SIDE: WHATSAPP CHAT FLOATING WIDGET */}
+      <div style={{ position: 'fixed', bottom: '24px', right: '24px', width: '380px', height: '540px', zIndex: 1000, borderRadius: '16px', overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column' }}>
+        {simStep === 0 ? (
+          <div style={{ flex: 1, background: '#0b141a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#8696a0', fontSize: '14px', gap: '12px' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#202c33', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '16px', height: '16px', border: '2px solid #8696a0', borderTopColor: 'transparent', borderRadius: '50%', animation: 'pulse 1s linear infinite' }}></div>
+            </div>
+            <span>Preparando atendimento virtual...</span>
+          </div>
+        ) : (
+          <div className="whatsapp-chat-container" style={{ height: '100%', borderRadius: '16px' }}>
+            <div className="chat-header">
+              <div className="chat-avatar bot">IA</div>
+              <div className="chat-user-info">
+                <h4>Atendente Virtual</h4>
+                <p>{isTyping ? 'digitando...' : 'Online'}</p>
+              </div>
+            </div>
+            <div className="chat-body" ref={chatBodyRef}>
+              {chatMessages.map((msg, index) => (
+                <div key={index} className={`message ${msg.sender === 'bot' ? 'received' : 'sent'}`}>
+                  <div style={{ whiteSpace: 'pre-line' }}>{msg.text}</div>
+                  <div className="message-time">{msg.time}</div>
+                </div>
+              ))}
+              {isTyping && (
+                <div className="message received" style={{ display: 'flex', gap: '4px', width: '60px', justifyContent: 'center', padding: '12px' }}>
+                  <span style={{ width: '6px', height: '6px', backgroundColor: '#8696a0', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1s infinite' }}></span>
+                  <span style={{ width: '6px', height: '6px', backgroundColor: '#8696a0', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1s infinite 0.2s' }}></span>
+                  <span style={{ width: '6px', height: '6px', backgroundColor: '#8696a0', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1s infinite 0.4s' }}></span>
+                </div>
+              )}
+            </div>
+            <form className="chat-input-area" onSubmit={handlePublicSendMessage}>
+              {simStep === 6 ? (
+                <div style={{ width: '100%', textAlign: 'center', padding: '8px 0' }}>
+                  {isQualified ? (
+                    <>
+                      <div style={{ color: '#25d366', fontSize: '15px', fontWeight: 700, marginBottom: '12px' }}>
+                        ✅ Você foi qualificado!
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const waLink = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel: ${property.title} - ${property.price}`)}`;
+                          const win = window.open(waLink, '_blank');
+                          if (!win) location.href = waLink;
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '14px 24px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #25d366, #128C7E)', color: 'white', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}
+                      >
+                        💬 Falar com o Corretor no WhatsApp
+                      </button>
+                    </>
+                  ) : (
+                    <div style={{ color: '#8696a0', fontSize: '14px', fontWeight: 500 }}>
+                      ❌ Não foi possível prosseguir com este perfil.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    className="chat-input"
+                    placeholder="Digite sua resposta..."
+                    value={typedMessage}
+                    onChange={(e) => setTypedMessage(e.target.value)}
+                    disabled={isTyping}
+                  />
+                  <button type="submit" className="chat-send-btn" disabled={isTyping}>
+                    <ArrowRight size={20} />
+                  </button>
+                </>
+              )}
+            </form>
+          </div>
+        )}
       </div>
       </div>
     );
@@ -499,11 +766,11 @@ export default function App() {
         <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), var(--background)', padding: '40px 20px' }}>
           
           {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-            <div className="logo-icon" style={{ width: '44px', height: '44px', fontSize: '18px' }}>IF</div>
-            <span className="logo-text" style={{ fontSize: '28px' }}>ImobiFlow</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+            <img src="/imoveis/logoimovel.png" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
           </div>
-          <p style={{ color: 'var(--muted)', fontSize: '15px', marginBottom: '48px', textAlign: 'center' }}>Plataforma de qualificação e distribuição de leads imobiliários</p>
+
+          <p style={{ color: 'var(--muted)', fontSize: '15px', marginBottom: '8px', textAlign: 'center' }}>Plataforma de qualificação e distribuição de leads imobiliários</p>
 
           <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'white', marginBottom: '8px', textAlign: 'center' }}>Como você quer usar a plataforma?</h2>
           <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '36px', textAlign: 'center' }}>Escolha o perfil que melhor descreve o seu caso</p>
@@ -515,7 +782,7 @@ export default function App() {
               className="mode-card"
               onClick={() => { setSelectedMode('solo'); setOnboardingStep('register'); }}
             >
-              <div className="mode-card-icon" style={{ background: 'linear-gradient(135deg, #3b82f6, #06b6d4)' }}>🧑‍💼</div>
+              <div className="mode-card-icon"><img src="/imoveis/corretor-independente.png" alt="Corretor Independente" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
               <h3 className="mode-card-title">Corretor Independente</h3>
               <p className="mode-card-desc">Trabalha sozinho e quer que todos os leads dos seus imóveis cheguem diretamente no seu WhatsApp. Nenhum lead é compartilhado.</p>
               <ul className="mode-card-list">
@@ -532,7 +799,7 @@ export default function App() {
               className="mode-card"
               onClick={() => { setSelectedMode('team'); setOnboardingStep('register'); }}
             >
-              <div className="mode-card-icon" style={{ background: 'linear-gradient(135deg, #10b981, #3b82f6)' }}>🏢</div>
+              <div className="mode-card-icon"><img src="/imoveis/imobiliaria.png" alt="Imobiliária" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
               <h3 className="mode-card-title">Imobiliária / Equipe</h3>
               <p className="mode-card-desc">Gerencia uma equipe de corretores. Os leads qualificados são distribuídos automaticamente e de forma justa entre todos os corretores de plantão.</p>
               <ul className="mode-card-list">
@@ -553,8 +820,7 @@ export default function App() {
         <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), var(--background)', padding: '40px 20px' }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <div className="logo-icon" style={{ width: '44px', height: '44px', fontSize: '18px' }}>IF</div>
-            <span className="logo-text" style={{ fontSize: '28px' }}>ImobiFlow</span>
+                        <img src="/imoveis/logoimovel.png" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
           </div>
 
           <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '32px' }}>
@@ -591,7 +857,7 @@ export default function App() {
             ) : (
               <>
                 <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <div style={{ fontSize: '40px', marginBottom: '8px' }}>🏢</div>
+                  <div style={{ width: '96px', height: '96px', margin: '0 auto 8px', overflow: 'hidden' }}><img src="/imoveis/imobiliaria.png" alt="Imobiliária" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /></div>
                   <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'white', margin: '0 0 4px' }}>Cadastro da Imobiliária</h2>
                   <p style={{ fontSize: '13px', color: 'var(--muted)', margin: 0 }}>Dê um nome para sua equipe e configure os corretores</p>
                 </div>
@@ -620,8 +886,7 @@ export default function App() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="logo-container">
-          <div className="logo-icon">IF</div>
-          <span className="logo-text">ImobiFlow</span>
+                    <img src="/imoveis/logoimovel.png" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
         </div>
 
         {/* Badge de Modo Ativo */}
@@ -704,34 +969,6 @@ export default function App() {
         </nav>
 
         <div style={{ marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
-          <div 
-            style={{ fontSize: '10px', color: apiToken ? 'var(--success)' : 'var(--muted)', textAlign: 'center', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer' }}
-            onClick={() => document.getElementById('api-token-input')?.focus()}
-          >
-            {apiToken ? '🔌 API Invertexto conectada' : '⚡ Modo simulação'}
-          </div>
-          <div style={{ marginBottom: '8px' }}>
-            <input
-              id="api-token-input"
-              type="text"
-              className="form-control"
-              placeholder="Token Invertexto"
-              value={apiToken}
-              onChange={(e) => { setApiToken(e.target.value); localStorage.setItem('invertexto_token', e.target.value); }}
-              style={{ fontSize: '11px', padding: '6px 8px', textAlign: 'center' }}
-            />
-          </div>
-          <button 
-            className="btn btn-primary" 
-            style={{ width: '100%', justifyContent: 'center' }}
-            onClick={() => {
-              handleResetSim();
-              setActiveTab('simulador');
-            }}
-          >
-            <Play size={16} />
-            Simulador de Lead
-          </button>
           <button
             className="btn btn-secondary"
             style={{ width: '100%', justifyContent: 'center', marginTop: '8px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
@@ -832,7 +1069,7 @@ export default function App() {
                     <thead>
                       <tr>
                         <th>Nome</th>
-                        <th>CPF / CNPJ</th>
+                        <th>Renda / Escore</th>
                         <th>Imóvel</th>
                         <th>Corretor Sorteado</th>
                         <th>Data</th>
@@ -886,7 +1123,7 @@ export default function App() {
               </div>
               ) : (
               <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', textAlign: 'center' }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'linear-gradient(135deg, #2563eb, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>🧑‍💼</div>
+                <div style={{ width: '96px', height: '96px', borderRadius: '50%', overflow: 'hidden' }}><img src="/imoveis/corretor-independente.png" alt="Corretor Independente" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
                 <div>
                   <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'white' }}>{soloProfile.name}</h3>
                   <p style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px' }}>Corretor Independente · {soloProfile.creci}</p>
@@ -952,7 +1189,7 @@ export default function App() {
                     <div className="property-rules">
                       <span>Qualificação:</span>
                       <span className="badge badge-success" style={{ fontSize: '10px' }}>
-                        API de {property.rule.split(' ')[0]} ativa
+                        Escore mínimo: {getMinEscore(property.rule)}
                       </span>
                     </div>
 
@@ -976,9 +1213,8 @@ export default function App() {
                           className="btn btn-secondary" 
                           style={{ padding: '6px 12px', fontSize: '12px' }}
                           onClick={() => {
-                            setSelectedPropertyId(property.id);
-                            handleResetSim();
-                            setActiveTab('simulador');
+                            const link = `${window.location.origin}${window.location.pathname}?imovel=${property.id}`;
+                            window.open(link, '_blank');
                           }}
                         >
                           Ver Landing
@@ -1041,8 +1277,9 @@ export default function App() {
                       value={newProperty.rule}
                       onChange={(e) => setNewProperty({...newProperty, rule: e.target.value})}
                     >
-                      <option value="CPF Regular">Exigir CPF Regular (B2C)</option>
-                      <option value="CNPJ Ativo">Exigir CNPJ Ativo (B2B)</option>
+                      <option value="R$ 3.001 a R$ 5.000">Renda a partir de R$ 3.001 (Escore 50)</option>
+                      <option value="R$ 5.001 a R$ 10.000">Renda a partir de R$ 5.001 (Escore 75)</option>
+                      <option value="Acima de R$ 10.000">Renda acima de R$ 10.000 (Escore 100)</option>
                     </select>
                   </div>
                 </div>
@@ -1357,8 +1594,8 @@ export default function App() {
                     Oportunidade imperdível! {lastCreatedProperty.title} localizado em {lastCreatedProperty.location}. 
                     Com {lastCreatedProperty.specs?.toLowerCase()}, este imóvel oferece o conforto e a praticidade que você sempre sonhou. 
                     Agende já sua visita e garanta esta oportunidade única de investimento.
-                    {lastCreatedProperty.rule === 'CNPJ Ativo' 
-                      ? ' Ideal para sua empresa se estabelecer com toda a infraestrutura necessária.'
+                    {getMinEscore(lastCreatedProperty.rule) >= 75
+                      ? ' Imóvel de alto padrão com critérios de renda específicos.'
                       : ' Perfeito para sua família viver com qualidade e segurança.'}
                   </div>
                   <div style={{
@@ -1374,9 +1611,8 @@ export default function App() {
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                 <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}
                   onClick={() => {
-                    handleResetSim();
-                    setSelectedPropertyId(lastCreatedProperty.id);
-                    setActiveTab('simulador');
+                    const link = `${window.location.origin}${window.location.pathname}?imovel=${lastCreatedProperty.id}`;
+                    window.open(link, '_blank');
                   }}>
                   👁️ Visualizar Landing Page
                 </button>
@@ -1842,7 +2078,7 @@ export default function App() {
                     
                     {/* Header do Chat */}
                     <div className="chat-header">
-                      <div className="chat-avatar bot">Robô</div>
+                      <div className="chat-avatar bot">IA</div>
                       <div className="chat-user-info">
                         <h4>Atendente Virtual</h4>
                         <p>{isTyping ? 'digitando...' : 'Online'}</p>
@@ -1919,7 +2155,7 @@ export default function App() {
             </div>
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '20px 0 8px' }}>
-                <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg, #2563eb, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>🧑‍💼</div>
+                <div style={{ width: '108px', height: '108px', borderRadius: '50%', overflow: 'hidden' }}><img src="/imoveis/corretor-independente.png" alt="Corretor Independente" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
                 <span className="badge badge-info">Corretor Independente</span>
               </div>
               <div className="form-group">

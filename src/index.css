@@ -68,18 +68,6 @@ body {
   margin-bottom: 32px;
 }
 
-.logo-icon {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
-}
-
 .logo-text {
   font-size: 20px;
   font-weight: 700;
