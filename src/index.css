@@ -963,6 +963,17 @@ body {
     padding: 20px 16px;
     margin-left: 0;
     max-height: none;
+    width: 100%;
+  }
+
+  .header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .page-title h1 {
+    font-size: 20px;
   }
 
   .metrics-grid {
