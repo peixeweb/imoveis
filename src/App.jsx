@@ -17,7 +17,9 @@ import {
   Building,
   Layers,
   ArrowUpRight,
-  Trash2
+  Trash2,
+  Menu,
+  X
 } from 'lucide-react';
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || localStorage.getItem('groq_api_key') || '';
@@ -57,6 +59,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [accountMode, setAccountMode] = useState('onboarding');
   const [onboardingStep, setOnboardingStep] = useState('select');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState(null);
   const [soloProfile, setSoloProfile] = useState({ name: '', whatsapp: '', creci: '' });
   const [teamName, setTeamName] = useState('');
@@ -884,9 +887,22 @@ NÃO continue a conversa depois disso.`;
       {/* ===== MAIN APP (AFTER ONBOARDING) ===== */}
       {accountMode !== 'onboarding' && !isPublicView && (<>
       {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="logo-container">
-                    <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+      {/* Hamburger button — mobile only */}
+      <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+        <Menu size={24} />
+      </button>
+
+      {/* Overlay when sidebar is open on mobile */}
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <div className="logo-container">
+            <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+          </div>
+          <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
+            <X size={20} />
+          </button>
         </div>
 
         {/* Badge de Modo Ativo */}
@@ -908,7 +924,7 @@ NÃO continue a conversa depois disso.`;
             <li>
               <a 
                 className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-                onClick={() => setActiveTab('dashboard')}
+                onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }}
               >
                 <LayoutDashboard size={18} />
                 Dashboard
@@ -917,7 +933,7 @@ NÃO continue a conversa depois disso.`;
             <li>
               <a 
                 className={`nav-item ${activeTab === 'imoveis' ? 'active' : ''}`}
-                onClick={() => setActiveTab('imoveis')}
+                onClick={() => { setActiveTab('imoveis'); setSidebarOpen(false); }}
               >
                 <Home size={18} />
                 Imóveis Cadastrados
@@ -926,7 +942,7 @@ NÃO continue a conversa depois disso.`;
             <li>
               <a 
                 className={`nav-item ${activeTab === 'leads' ? 'active' : ''}`}
-                onClick={() => setActiveTab('leads')}
+                onClick={() => { setActiveTab('leads'); setSidebarOpen(false); }}
               >
                 <Users size={18} />
                 Fila de Leads
@@ -935,7 +951,7 @@ NÃO continue a conversa depois disso.`;
             <li>
               <a 
                 className={`nav-item ${activeTab === 'kanban' ? 'active' : ''}`}
-                onClick={() => setActiveTab('kanban')}
+                onClick={() => { setActiveTab('kanban'); setSidebarOpen(false); }}
               >
                 <Layers size={18} />
                 CRM Kanban (Nativo)
@@ -946,7 +962,7 @@ NÃO continue a conversa depois disso.`;
               <li>
                 <a 
                   className={`nav-item ${activeTab === 'equipe' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('equipe')}
+                  onClick={() => { setActiveTab('equipe'); setSidebarOpen(false); }}
                 >
                   <Award size={18} />
                   Minha Equipe
@@ -958,7 +974,7 @@ NÃO continue a conversa depois disso.`;
               <li>
                 <a 
                   className={`nav-item ${activeTab === 'perfil' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('perfil')}
+                  onClick={() => { setActiveTab('perfil'); setSidebarOpen(false); }}
                 >
                   <UserCheck size={18} />
                   Meu Perfil
