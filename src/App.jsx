@@ -709,9 +709,6 @@ NÃO escreva mais nada depois disso.`;
           <div className="whatsapp-chat-container" style={{ height: '100%', borderRadius: '16px' }}>
             <div className="chat-header" style={{ flexDirection: 'column', gap: '6px', padding: '8px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-                {(property.images?.length > 0 ? property.images : [{ url: property.image, ratio: '1:1' }]).slice(0, 1).map((img, idx) => (
-                  <img key={idx} src={img.url} style={{ width: '32px', height: '32px', borderRadius: '5px', objectFit: 'cover', flexShrink: 0 }} />
-                ))}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h4 style={{ fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{property.title}</h4>
                   <p style={{ fontSize: '11px', color: '#00a884', fontWeight: 600, margin: 0 }}>{property.price.startsWith('R$') ? property.price : `R$ ${property.price}`}</p>
