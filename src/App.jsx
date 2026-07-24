@@ -183,7 +183,16 @@ export default function App() {
     }
   }, [chatMessages, isTyping]);
 
-  const selectedProperty = properties.find(p => p.id === selectedPropertyId) || properties[0];
+  const selectedProperty = properties.find(p => p.id === selectedPropertyId) || (() => {
+    const saved = localStorage.getItem('imobiflow_last_created');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.id === selectedPropertyId) return parsed;
+      } catch {}
+    }
+    return properties[0];
+  })();
 
   // Adicionar novo imóvel
   const handleCreateProperty = (e) => {
@@ -210,6 +219,7 @@ export default function App() {
     
     setProperties([...properties, created]);
     setLastCreatedProperty(created);
+    localStorage.setItem('imobiflow_last_created', JSON.stringify(created));
     setNewProperty({
       title: '',
       price: '',
