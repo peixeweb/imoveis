@@ -767,7 +767,7 @@ NÃO continue a conversa depois disso.`;
           
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-            <img src="/imoveis/logoimovel.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+            <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
           </div>
 
           <p style={{ color: 'var(--muted)', fontSize: '15px', marginBottom: '8px', textAlign: 'center' }}>Plataforma de qualificação e distribuição de leads imobiliários</p>
@@ -820,7 +820,7 @@ NÃO continue a conversa depois disso.`;
         <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), var(--background)', padding: '40px 20px' }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                        <img src="/imoveis/logoimovel.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+                        <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
           </div>
 
           <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '32px' }}>
@@ -886,7 +886,7 @@ NÃO continue a conversa depois disso.`;
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="logo-container">
-                    <img src="/imoveis/logoimovel.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+                    <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
         </div>
 
         {/* Badge de Modo Ativo */}
