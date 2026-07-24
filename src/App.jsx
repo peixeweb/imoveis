@@ -265,23 +265,13 @@ export default function App() {
 
 IMÓVEL: ${prop.title}
 VALOR: ${prop.price}
-REGRAS: ${prop.rule} (escore mínimo: ${minEscore})
-
-FAIXAS DE RENDA:
-${faixasStr}
+REGRAS: ${prop.rule}
 
 REGRAS:
-- Apenas rendas a partir de R$ 3.000 (faixas de R$ 3.000 a R$ 5.000, R$ 5.000 a R$ 7.000, R$ 7.000 a R$ 10.000 e Acima de R$ 10.000) são aprovadas. Renda abaixo de R$ 3.000 é REPROVADA.
+- Apenas rendas a partir de R$ 3.000 são aprovadas. Renda abaixo de R$ 3.000 é REPROVADA.
 INSTRUÇÕES:
 - Fale português brasileiro, seja educado e breve.
-- Apresente-se, pergunte o NOME, a PROFISSÃO e a faixa de RENDA MENSAL do lead.
-- Quando tiver TODOS os dados (nome + profissão + renda), finalize com:
----DADOS_LEAD---
-NOME: nome completo
-PROFISSAO: profissão
-RENDA: faixa (${INCOME_FAIXAS.map(f => `"${f.value}"`).join(', ')})
-ESCORE: número (${INCOME_FAIXAS.map(f => f.escore).join(', ')})
----FIM_DADOS---`;
+- Apresente-se e pergunte apenas o NOME do lead. NÃO peça profissão ou renda ainda.`;
 
       const greeting = await groqChat(systemPrompt, [
         { role: 'user', content: 'Inicie o atendimento para qualificar um lead para este imóvel.' }
