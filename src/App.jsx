@@ -422,21 +422,19 @@ ${faixasStr}
 
 REGRAS OBRIGATÓRIAS:
 1. Converse em português brasileiro, seja educado e breve.
-2. Pergunte o NOME, a PROFISSÃO e a RENDA MENSAL do lead.
+2. Pergunte o NOME, a PROFISSÃO e a RENDA MENSAL do lead, UM DE CADA VEZ.
 3. Determine a faixa de renda e o escore correspondente.
 4. ***REGRAS DE APROVAÇÃO***: Apenas rendas a partir de R$ 3.000 (faixas R$ 3.000 a R$ 5.000, R$ 5.000 a R$ 7.000, R$ 7.000 a R$ 10.000 e Acima de R$ 10.000) são aprovadas. Renda abaixo de R$ 3.000 (Escore 25) é REPROVADA automaticamente.
-5. ***IMPORTANTE***: Quando tiver NOME + PROFISSÃO + RENDA, sua resposta deve terminar EXATAMENTE com:
+5. ***IMPORTANTE***: Quando o lead fornecer NOME + PROFISSÃO + RENDA, sua resposta deve terminar EXATAMENTE com:
 ---DADOS_LEAD---
 NOME: nome completo
 PROFISSAO: profissão
 RENDA: ${INCOME_FAIXAS.map(f => `"${f.value}"`).join(' ou ')}
 ESCORE: ${INCOME_FAIXAS.map(f => f.escore).join(', ')}
 ---FIM_DADOS---
-NÃO continue a conversa depois disso.`;
+NÃO escreva mais nada depois disso.`;
 
-    const extractionMsg = `Com base na conversa acima, se você já sabe o NOME, a PROFISSÃO e a RENDA do lead, responda APENAS com o formato ---DADOS_LEAD---. Caso falte alguma informação (nome, profissão ou renda), faça uma pergunta educada para obter o dado que falta. NUNCA output o formato ---DADOS_LEAD--- incompleto.`;
-
-    const response = await groqChat(systemPrompt, [...updatedHistory, { role: 'user', content: extractionMsg }]);
+    const response = await groqChat(systemPrompt, updatedHistory);
     if (!response) { setIsTyping(false); return; }
 
     setIsTyping(false);
