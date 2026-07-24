@@ -434,7 +434,7 @@ ESCORE: ${INCOME_FAIXAS.map(f => f.escore).join(', ')}
 ---FIM_DADOS---
 NÃO continue a conversa depois disso.`;
 
-    const extractionMsg = `Com base na conversa acima, se você já sabe o NOME, a PROFISSÃO e a RENDA do lead, responda APENAS com o formato ---DADOS_LEAD---. Caso falte alguma informação, continue conversando normalmente.`;
+    const extractionMsg = `Com base na conversa acima, se você já sabe o NOME, a PROFISSÃO e a RENDA do lead, responda APENAS com o formato ---DADOS_LEAD---. Caso falte alguma informação (nome, profissão ou renda), faça uma pergunta educada para obter o dado que falta. NUNCA output o formato ---DADOS_LEAD--- incompleto.`;
 
     const response = await groqChat(systemPrompt, [...updatedHistory, { role: 'user', content: extractionMsg }]);
     if (!response) { setIsTyping(false); return; }
@@ -461,7 +461,15 @@ NÃO continue a conversa depois disso.`;
     const profissao = block.match(/PROFISSAO:\s*(.+)/)?.[1]?.trim() || '';
     const renda = block.match(/RENDA:\s*(.+)/)?.[1]?.trim();
     const escoreStr = block.match(/ESCORE:\s*(\d+)/)?.[1];
-    if (!nome || !renda || !escoreStr) return;
+
+    if (!nome || !renda || !escoreStr) {
+      const text = response.replace(/---DADOS_LEAD---[\s\S]*?---FIM_DADOS---/, '').trim() || response.replace(/---DADOS_LEAD---[\s\S]*?---FIM_DADOS---/g, '').trim();
+      if (text) {
+        setChatMessages(prev => [...prev, { sender: 'bot', text, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
+        setGroqHistory(prev => [...prev, { role: 'assistant', content: text }]);
+      }
+      return;
+    }
 
     const leadEscore = parseInt(escoreStr);
     const faixa = INCOME_FAIXAS.find(f => f.value === renda);
