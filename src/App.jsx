@@ -68,6 +68,8 @@ export default function App() {
   const urlImovelParam = new URLSearchParams(window.location.search).get('imovel');
   const [isPublicView, setIsPublicView] = useState(!!urlImovelParam);
   const [lastCreatedProperty, setLastCreatedProperty] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [showChatMenu, setShowChatMenu] = useState(true);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -80,13 +82,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isPublicView) {
-      const timer = setTimeout(() => {
-        if (typeof simStep !== 'undefined' && simStep === 0) {
-          handleStartSimChat();
-        }
-      }, 800);
-      return () => clearTimeout(timer);
+    if (isPublicView && typeof simStep !== 'undefined') {
+      setSimStep(0);
     }
   }, [isPublicView]);
   
@@ -643,7 +640,7 @@ NÃO escreva mais nada depois disso.`;
             </div>
           )}
           <p style={{ fontSize: '11px', color: '#94a3b8' }}>
-            {simStep === 0 ? 'Preparando atendimento...' : '💬 Chat aberto no canto inferior direito'}
+            💬 Toque no botão de chat no canto inferior direito
           </p>
         </div>
 
@@ -653,30 +650,74 @@ NÃO escreva mais nada depois disso.`;
         </div>
       </div>
 
-      {/* RIGHT SIDE: WHATSAPP CHAT FLOATING WIDGET */}
-      <div className="public-chat-widget">
-        {simStep === 0 ? (
-          <div style={{ flex: 1, background: '#0b141a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#8696a0', fontSize: '14px', gap: '12px', borderRadius: '16px' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#202c33', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: '16px', height: '16px', border: '2px solid #8696a0', borderTopColor: 'transparent', borderRadius: '50%', animation: 'pulse 1s linear infinite' }}></div>
+      {/* FAB */}
+      {!chatOpen && (
+        <button className="chat-fab" onClick={() => { setChatOpen(true); setShowChatMenu(true); }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </button>
+      )}
+
+      {/* Overlay */}
+      {chatOpen && <div className="chat-overlay" onClick={() => setChatOpen(false)} />}
+
+      {/* Expanded container */}
+      {chatOpen && (
+      <div className="chat-expanded-container">
+        {showChatMenu ? (
+          <>
+            <div className="chat-menu-header">
+              <div className="chat-menu-header-info">
+                <div className="chat-avatar bot" style={{ width: '32px', height: '32px', fontSize: '11px' }}>IA</div>
+                <div>
+                  <strong style={{ fontSize: '13px' }}>Atendente Virtual</strong>
+                  <span style={{ fontSize: '11px', color: '#00a884', display: 'block' }}>Online</span>
+                </div>
+              </div>
+              <button className="chat-menu-close" onClick={() => setChatOpen(false)} aria-label="Fechar">✕</button>
             </div>
-            <span>Preparando atendimento virtual...</span>
-          </div>
+            <div className="chat-menu-body">
+              <p style={{ fontSize: '12px', color: '#8696a0', padding: '0 4px 8px', margin: 0, lineHeight: 1.4 }}>
+                Olá! Como podemos ajudar você com o imóvel <strong style={{ color: '#e0e0e0' }}>{property.title}</strong>?
+              </p>
+              <button className="chat-option-btn" onClick={() => { if (simStep === 0) handleStartSimChat(); setShowChatMenu(false); }}>
+                <span className="chat-option-icon">💬</span>
+                <span className="chat-option-label">Falar com Atendente</span>
+                <span className="chat-option-arrow">›</span>
+              </button>
+              <button className="chat-option-btn" onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Gostaria de agendar uma visita para o imóvel: ${property.title} - ${property.price}`)}`; const w = window.open(wa, '_blank'); if (!w) location.href = wa; }}>
+                <span className="chat-option-icon">📅</span>
+                <span className="chat-option-label">Agendar Visita</span>
+                <span className="chat-option-arrow">›</span>
+              </button>
+              <button className="chat-option-btn" onClick={() => { if (simStep === 0) handleStartSimChat(); setShowChatMenu(false); }}>
+                <span className="chat-option-icon">📋</span>
+                <span className="chat-option-label">Ver Opções</span>
+                <span className="chat-option-arrow">›</span>
+              </button>
+              <button className="chat-option-btn" onClick={() => { if (simStep === 0) handleStartSimChat(); setShowChatMenu(false); }}>
+                <span className="chat-option-icon">💰</span>
+                <span className="chat-option-label">Preço</span>
+                <span className="chat-option-arrow">›</span>
+              </button>
+              <button className="chat-option-btn chat-option-btn--sair" onClick={() => setChatOpen(false)}>
+                <span className="chat-option-icon">🚪</span>
+                <span className="chat-option-label">Sair</span>
+              </button>
+            </div>
+          </>
         ) : (
           <div className="whatsapp-chat-container" style={{ height: '100%', borderRadius: '16px' }}>
-            <div className="chat-header" style={{ flexDirection: 'column', gap: '8px', padding: '10px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
+            <div className="chat-header" style={{ flexDirection: 'column', gap: '6px', padding: '8px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
                 {(property.images?.length > 0 ? property.images : [{ url: property.image, ratio: '1:1' }]).slice(0, 1).map((img, idx) => (
-                  <img key={idx} src={img.url} style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
+                  <img key={idx} src={img.url} style={{ width: '32px', height: '32px', borderRadius: '5px', objectFit: 'cover', flexShrink: 0 }} />
                 ))}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <h4 style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{property.title}</h4>
-                  <p style={{ fontSize: '12px', color: '#00a884', fontWeight: 600 }}>{property.price.startsWith('R$') ? property.price : `R$ ${property.price}`}</p>
+                  <h4 style={{ fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{property.title}</h4>
+                  <p style={{ fontSize: '11px', color: '#00a884', fontWeight: 600, margin: 0 }}>{property.price.startsWith('R$') ? property.price : `R$ ${property.price}`}</p>
                 </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div className="chat-avatar bot" style={{ width: '28px', height: '28px', fontSize: '10px', marginLeft: 'auto' }}>IA</div>
-                  <p style={{ fontSize: '10px', color: '#8696a0', marginTop: '2px' }}>{isTyping ? 'digitando...' : 'Online'}</p>
-                </div>
+                <button onClick={() => setShowChatMenu(true)} style={{ background: 'none', border: 'none', color: '#8696a0', cursor: 'pointer', padding: '4px', fontSize: '16px', lineHeight: 1, flexShrink: 0 }} aria-label="Voltar ao menu">←</button>
+                <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: '#8696a0', cursor: 'pointer', padding: '4px', fontSize: '16px', lineHeight: 1, flexShrink: 0 }} aria-label="Fechar">✕</button>
               </div>
             </div>
             <div className="chat-body" ref={chatBodyRef}>
@@ -696,42 +737,30 @@ NÃO escreva mais nada depois disso.`;
             </div>
             <form className="chat-input-area" onSubmit={handlePublicSendMessage}>
               {simStep === 6 ? (
-                <div style={{ width: '100%', textAlign: 'center', padding: '8px 0' }}>
+                <div style={{ width: '100%', textAlign: 'center', padding: '6px 0' }}>
                   {isQualified ? (
                     <>
-                      <div style={{ color: '#25d366', fontSize: '15px', fontWeight: 700, marginBottom: '12px' }}>
-                        ✅ Você foi qualificado!
+                      <div style={{ color: '#25d366', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>
+                        ✅ Qualificado!
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const waLink = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel: ${property.title} - ${property.price}`)}`;
-                          const win = window.open(waLink, '_blank');
-                          if (!win) location.href = waLink;
-                        }}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '14px 24px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #25d366, #128C7E)', color: 'white', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}
+                      <button type="button"
+                        onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel: ${property.title} - ${property.price}`)}`; const w = window.open(wa, '_blank'); if (!w) location.href = wa; }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', padding: '8px 14px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #25d366, #128C7E)', color: 'white', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
                       >
-                        💬 Falar com o Corretor no WhatsApp
+                        💬 Falar no WhatsApp
                       </button>
                     </>
                   ) : (
-                    <div style={{ color: '#8696a0', fontSize: '14px', fontWeight: 500 }}>
-                      ❌ Não foi possível prosseguir com este perfil.
+                    <div style={{ color: '#8696a0', fontSize: '12px', fontWeight: 500 }}>
+                      ❌ Perfil não se qualificou.
                     </div>
                   )}
                 </div>
               ) : (
                 <>
-                  <input
-                    type="text"
-                    className="chat-input"
-                    placeholder="Digite sua resposta..."
-                    value={typedMessage}
-                    onChange={(e) => setTypedMessage(e.target.value)}
-                    disabled={isTyping}
-                  />
+                  <input type="text" className="chat-input" placeholder="Digite sua resposta..." value={typedMessage} onChange={(e) => setTypedMessage(e.target.value)} disabled={isTyping} />
                   <button type="submit" className="chat-send-btn" disabled={isTyping}>
-                    <ArrowRight size={20} />
+                    <ArrowRight size={18} />
                   </button>
                 </>
               )}
@@ -739,6 +768,7 @@ NÃO escreva mais nada depois disso.`;
           </div>
         )}
       </div>
+      )}
       </div>
     );
   }
