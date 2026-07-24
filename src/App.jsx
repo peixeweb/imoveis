@@ -887,10 +887,7 @@ NÃO continue a conversa depois disso.`;
       {/* ===== MAIN APP (AFTER ONBOARDING) ===== */}
       {accountMode !== 'onboarding' && !isPublicView && (<>
       {/* Sidebar */}
-      {/* Hamburger button — mobile only */}
-      <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
-        <Menu size={24} />
-      </button>
+      
 
       {/* Overlay when sidebar is open on mobile */}
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
@@ -1011,6 +1008,9 @@ NÃO continue a conversa depois disso.`;
         {activeTab === 'dashboard' && (
           <div className="animate-slide" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
             <div className="header-row">
+              <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+                <Menu size={24} />
+              </button>
               <div className="page-title">
                 <h1>{accountMode === 'solo' ? `Painel do Corretor — ${soloProfile.name}` : 'Painel da Imobiliária'}</h1>
                 <p>{accountMode === 'solo' ? 'Seus imóveis e leads chegando diretamente no seu WhatsApp.' : 'Monitore suas campanhas de qualificação e distribuição de leads em tempo real.'}</p>
@@ -1162,6 +1162,9 @@ NÃO continue a conversa depois disso.`;
         {activeTab === 'imoveis' && (
           <div className="animate-slide" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
             <div className="header-row">
+              <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+                <Menu size={24} />
+              </button>
               <div className="page-title">
                 <h1>Gerenciamento de Imóveis</h1>
                 <p>Cadastre e visualize os imóveis ativos nas suas campanhas de qualificação automatizada.</p>
@@ -1652,6 +1655,9 @@ NÃO continue a conversa depois disso.`;
         {activeTab === 'leads' && (
           <div className="animate-slide" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
             <div className="header-row">
+              <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+                <Menu size={24} />
+              </button>
               <div className="page-title">
                 <h1>Fila Geral de Leads</h1>
                 <p>Todos os contatos qualificados e distribuídos pelo robô nas últimas horas.</p>
@@ -1738,6 +1744,9 @@ NÃO continue a conversa depois disso.`;
         {activeTab === 'kanban' && (
           <div className="animate-slide" style={{ display: 'flex', flexDirection: 'column', gap: '32px', height: '100%' }}>
             <div className="header-row">
+              <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+                <Menu size={24} />
+              </button>
               <div className="page-title">
                 <h1>Pipeline Kanban Integrado</h1>
                 <p>Gerencie o funil de vendas dos leads. Arraste e altere o status de atendimento.</p>
@@ -1886,8 +1895,11 @@ NÃO continue a conversa depois disso.`;
           <div className="animate-slide" style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%' }}>
             
             {/* Header com seleção de qual imóvel simular */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-              <div>
+            <div className="header-row" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '16px', flexWrap: 'wrap' }}>
+              <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+                <Menu size={24} />
+              </button>
+              <div className="page-title">
                 <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Simulador de Experiência do Lead</h1>
                 <p style={{ fontSize: '13px', color: 'var(--muted)' }}>
                   Escolha um imóvel e simule como um lead entra na página, abre o WhatsApp e é validado pelo robô.
@@ -2165,9 +2177,14 @@ NÃO continue a conversa depois disso.`;
         {/* TAB: MEU PERFIL (modo solo) */}
         {activeTab === 'perfil' && accountMode === 'solo' && (
           <div className="animate-slide" style={{ maxWidth: '520px', margin: '0 auto', width: '100%' }}>
-            <div className="page-title" style={{ marginBottom: '24px' }}>
-              <h1>Meu Perfil</h1>
-              <p>Configure seus dados. Os leads dos seus imóveis chegam diretamente neste WhatsApp.</p>
+            <div className="header-row" style={{ marginBottom: '24px' }}>
+              <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+                <Menu size={24} />
+              </button>
+              <div className="page-title">
+                <h1>Meu Perfil</h1>
+                <p>Configure seus dados. Os leads dos seus imóveis chegam diretamente neste WhatsApp.</p>
+              </div>
             </div>
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '20px 0 8px' }}>
@@ -2266,6 +2283,9 @@ function EquipeTab({ brokers, setBrokers, onNavigate }) {
   return (
     <div className="animate-slide" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       <div className="header-row">
+        <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+          <Menu size={24} />
+        </button>
         <div className="page-title">
           <h1>Minha Equipe</h1>
           <p>Cadastre os corretores e depois atribua imóveis a eles.</p>
