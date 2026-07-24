@@ -464,9 +464,10 @@ ${faixasStr}
 REGRAS OBRIGATÓRIAS:
 1. Converse em português brasileiro, seja educado e breve.
 2. Pergunte o NOME, a PROFISSÃO e a RENDA MENSAL do lead, UM DE CADA VEZ.
-3. Determine a faixa de renda e o escore correspondente.
-4. ***REGRAS DE APROVAÇÃO***: Apenas rendas a partir de R$ 3.000 (faixas R$ 3.000 a R$ 5.000, R$ 5.000 a R$ 7.000, R$ 7.000 a R$ 10.000 e Acima de R$ 10.000) são aprovadas. Renda abaixo de R$ 3.000 (Escore 25) é REPROVADA automaticamente.
-5. ***IMPORTANTE***: Quando o lead fornecer NOME + PROFISSÃO + RENDA, sua resposta deve terminar EXATAMENTE com:
+3. Quando for perguntar a RENDA, MOSTRE TODAS as faixas abaixo numeradas para o lead escolher (incluindo "Até R$ 3.000" que desqualifica).
+4. Determine a faixa de renda e o escore correspondente.
+5. ***REGRAS DE APROVAÇÃO***: Apenas rendas a partir de R$ 3.000 (faixas R$ 3.000 a R$ 5.000, R$ 5.000 a R$ 7.000, R$ 7.000 a R$ 10.000 e Acima de R$ 10.000) são aprovadas. Renda abaixo de R$ 3.000 (Escore 25) é REPROVADA automaticamente.
+6. ***IMPORTANTE***: Quando o lead fornecer NOME + PROFISSÃO + RENDA, sua resposta deve terminar EXATAMENTE com:
 ---DADOS_LEAD---
 NOME: nome completo
 PROFISSAO: profissão
