@@ -767,7 +767,7 @@ NÃO continue a conversa depois disso.`;
           
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-            <img src="/imoveis/logoimovel.png" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+            <img src="/imoveis/logoimovel.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
           </div>
 
           <p style={{ color: 'var(--muted)', fontSize: '15px', marginBottom: '8px', textAlign: 'center' }}>Plataforma de qualificação e distribuição de leads imobiliários</p>
@@ -782,7 +782,7 @@ NÃO continue a conversa depois disso.`;
               className="mode-card"
               onClick={() => { setSelectedMode('solo'); setOnboardingStep('register'); }}
             >
-              <div className="mode-card-icon"><img src="/imoveis/corretor-independente.png" alt="Corretor Independente" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
+              <div className="mode-card-icon"><img src="/imoveis/corretor-independente.webp" alt="Corretor Independente" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
               <h3 className="mode-card-title">Corretor Independente</h3>
               <p className="mode-card-desc">Trabalha sozinho e quer que todos os leads dos seus imóveis cheguem diretamente no seu WhatsApp. Nenhum lead é compartilhado.</p>
               <ul className="mode-card-list">
@@ -799,7 +799,7 @@ NÃO continue a conversa depois disso.`;
               className="mode-card"
               onClick={() => { setSelectedMode('team'); setOnboardingStep('register'); }}
             >
-              <div className="mode-card-icon"><img src="/imoveis/imobiliaria.png" alt="Imobiliária" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
+              <div className="mode-card-icon"><img src="/imoveis/imobiliaria.webp" alt="Imobiliária" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
               <h3 className="mode-card-title">Imobiliária / Equipe</h3>
               <p className="mode-card-desc">Gerencia uma equipe de corretores. Os leads qualificados são distribuídos automaticamente e de forma justa entre todos os corretores de plantão.</p>
               <ul className="mode-card-list">
@@ -820,7 +820,7 @@ NÃO continue a conversa depois disso.`;
         <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), var(--background)', padding: '40px 20px' }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                        <img src="/imoveis/logoimovel.png" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+                        <img src="/imoveis/logoimovel.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
           </div>
 
           <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '32px' }}>
@@ -857,7 +857,7 @@ NÃO continue a conversa depois disso.`;
             ) : (
               <>
                 <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <div style={{ width: '96px', height: '96px', margin: '0 auto 8px', overflow: 'hidden' }}><img src="/imoveis/imobiliaria.png" alt="Imobiliária" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /></div>
+                  <div style={{ width: '96px', height: '96px', margin: '0 auto 8px', overflow: 'hidden' }}><img src="/imoveis/imobiliaria.webp" alt="Imobiliária" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /></div>
                   <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'white', margin: '0 0 4px' }}>Cadastro da Imobiliária</h2>
                   <p style={{ fontSize: '13px', color: 'var(--muted)', margin: 0 }}>Dê um nome para sua equipe e configure os corretores</p>
                 </div>
@@ -886,7 +886,7 @@ NÃO continue a conversa depois disso.`;
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="logo-container">
-                    <img src="/imoveis/logoimovel.png" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+                    <img src="/imoveis/logoimovel.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
         </div>
 
         {/* Badge de Modo Ativo */}
@@ -1123,7 +1123,7 @@ NÃO continue a conversa depois disso.`;
               </div>
               ) : (
               <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', textAlign: 'center' }}>
-                <div style={{ width: '96px', height: '96px', borderRadius: '50%', overflow: 'hidden' }}><img src="/imoveis/corretor-independente.png" alt="Corretor Independente" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
+                <div style={{ width: '96px', height: '96px', borderRadius: '50%', overflow: 'hidden' }}><img src="/imoveis/corretor-independente.webp" alt="Corretor Independente" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
                 <div>
                   <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'white' }}>{soloProfile.name}</h3>
                   <p style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px' }}>Corretor Independente · {soloProfile.creci}</p>
@@ -2155,7 +2155,7 @@ NÃO continue a conversa depois disso.`;
             </div>
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '20px 0 8px' }}>
-                <div style={{ width: '108px', height: '108px', borderRadius: '50%', overflow: 'hidden' }}><img src="/imoveis/corretor-independente.png" alt="Corretor Independente" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
+                <div style={{ width: '108px', height: '108px', borderRadius: '50%', overflow: 'hidden' }}><img src="/imoveis/corretor-independente.webp" alt="Corretor Independente" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
                 <span className="badge badge-info">Corretor Independente</span>
               </div>
               <div className="form-group">
