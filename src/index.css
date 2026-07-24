@@ -125,6 +125,10 @@ body {
   align-items: center;
 }
 
+.page-title {
+  text-align: center;
+}
+
 .page-title h1 {
   font-size: 28px;
   font-weight: 700;
@@ -968,8 +972,15 @@ body {
 
   .header-row {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: 12px;
+    padding-left: 44px;
+    padding-top: 8px;
+  }
+
+  .page-title {
+    text-align: center;
+    width: 100%;
   }
 
   .page-title h1 {
