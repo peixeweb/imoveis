@@ -300,7 +300,7 @@ ESCORE: número (${INCOME_FAIXAS.map(f => f.escore).join(', ')})
       { sender: 'bot', text: `Olá! Seja bem-vindo ao portal de atendimento do imóvel *${prop.title}*.`, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }
     ]);
     setTimeout(() => {
-      addBotMessage("Para podermos direcionar você ao corretor especialista ideal, preciso validar algumas informações. Você deseja atendimento como Pessoa Física ou Pessoa Jurídica?\n\nDigite *1* para **Pessoa Física (CPF)**\nDigite *2* para **Pessoa Jurídica (CNPJ)**", 500);
+      addBotMessage("Para começarmos, por favor me diga seu **nome completo**.", 500);
       setSimStep(2);
     }, 1200);
   };
@@ -316,125 +316,66 @@ ESCORE: número (${INCOME_FAIXAS.map(f => f.escore).join(', ')})
 
     // Lógica do Fluxo de Conversação
     if (simStep === 2) {
-      if (userMsg === '1') {
-        setSimLeadType('PF');
-        setSimStep(3);
-        addBotMessage("Ótimo! Para prosseguir com o cadastro de Pessoa Física, digite seu **Nome Completo**, seu **CPF** e sua **Data de Nascimento** (exemplo: *João da Silva, 123.456.789-00, 15/08/1990*).", 1000);
-      } else if (userMsg === '2') {
-        setSimLeadType('PJ');
-        setSimStep(3);
-        addBotMessage("Excelente! Para prosseguir com o cadastro empresarial, por favor digite o **CNPJ** da sua empresa (exemplo: *12.345.678/0001-90*).", 1000);
-      } else {
-        addBotMessage("Desculpe, não entendi. Digite *1* para Pessoa Física ou *2* para Pessoa Jurídica.", 800);
-      }
-    } 
+      setSimInputName(userMsg);
+      setSimStep(3);
+      const faixasTexto = INCOME_FAIXAS.map((f, i) => `*${i + 1}* — ${f.label}`).join('\n');
+      addBotMessage(`Ótimo, **${userMsg}**! Agora me diga qual a sua **faixa de renda mensal**:\n\n${faixasTexto}\n\nDigite apenas o número correspondente.`, 1000);
+    }
     else if (simStep === 3) {
-      setSimStep(4);
-      addBotMessage("Perfeito! Recebi os dados. Estou realizando a consulta e validação automática na Receita Federal via API... 🔄 Aguarde um instante.", 1000);
+      const index = parseInt(userMsg) - 1;
+      const faixaEscolhida = INCOME_FAIXAS[index];
+      if (!faixaEscolhida) {
+        const faixasTexto = INCOME_FAIXAS.map((f, i) => `*${i + 1}* — ${f.label}`).join('\n');
+        addBotMessage(`Opção inválida. Por favor, digite o número correspondente à sua faixa de renda:\n\n${faixasTexto}`, 800);
+        return;
+      }
 
-      const consultarDocumento = async () => {
-        let infoText = '';
-        let leadName = '';
-        let leadDoc = '';
+      const leadName = simInputName || "Lead Simulado";
+      const minEscore = getMinEscore(selectedProperty?.rule);
+      const isQualified = faixaEscolhida.escore >= minEscore;
 
-        if (simLeadType === 'PF') {
-          const parts = userMsg.split(',');
-          leadName = parts[0]?.trim() || "Lead Simulado PF";
-          leadDoc = parts[1]?.trim() || "000.000.000-00";
+      setSimStep(5);
 
-          if (apiToken) {
-            try {
-              const res = await fetch(`https://api.invertexto.com/v1/validator?token=${apiToken}&value=${leadDoc.replace(/\D/g, '')}&type=cpf`);
-              const data = await res.json();
-              if (data.valid) {
-                infoText = `✅ **CPF Regularizado!**\n**Nome:** ${leadName}\n**Situação Cadastral:** REGULAR\n**Validação:** Aprovado para financiamento.`;
-              } else {
-                addBotMessage(`⚠️ **CPF Inválido!** O CPF informado não foi validado pela Receita Federal. Verifique os dados e tente novamente.`, 1000);
-                setTimeout(() => setSimStep(6), 2000);
-                return;
-              }
-            } catch {
-              addBotMessage(`⚠️ Erro ao consultar a API. Usando validação simulada.`, 1000);
-              infoText = `✅ **CPF Regularizado (simulado)!**\n**Nome:** ${leadName}\n**Situação Cadastral:** REGULAR`;
-            }
+      if (!isQualified) {
+        addBotMessage(`📊 **Análise de Perfil**\n\n**Nome:** ${leadName}\n**Renda:** ${faixaEscolhida.label}\n**Escore:** ${faixaEscolhida.escore} pts\n**Mínimo exigido:** ${minEscore} pts\n\nInfelizmente seu perfil não atende aos critérios de renda para este imóvel. Agradecemos pelo interesse! 🙏`, 1000);
+        setTimeout(() => {
+          setLeads(prev => [{
+            id: 'L' + (prev.length + 1).toString().padStart(2, '0'),
+            name: leadName, document: faixaEscolhida.value, docType: `Escore ${faixaEscolhida.escore}`,
+            docStatus: 'Inválido p/ Imóvel', propertyName: selectedProperty?.title || '',
+            brokerName: 'Sistema (Desqualificado)', brokerCreci: '',
+            stage: 'Perdido', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999998888'
+          }, ...prev]);
+          setSimStep(6);
+        }, 2000);
+      } else {
+        addBotMessage(`📊 **Análise de Perfil**\n\n**Nome:** ${leadName}\n**Renda:** ${faixaEscolhida.label}\n**Escore:** ${faixaEscolhida.escore} pts\n**Mínimo exigido:** ${minEscore} pts\n\n✅ **Perfil Aprovado!** Roteando atendimento...`, 1000);
+        setTimeout(() => {
+          let assignedBroker;
+          if (accountMode === 'solo') {
+            assignedBroker = { name: soloProfile.name, id: 'solo', creci: soloProfile.creci };
+            addBotMessage(`🎉 **Lead Direcionado!**\nO lead foi registrado diretamente para o corretor **${soloProfile.name}** (${soloProfile.creci}).\n\nVocê receberá a notificação no WhatsApp ${soloProfile.whatsapp}. Obrigado pelo contato!`, 1000);
           } else {
-            infoText = `✅ **CPF Regularizado!**\n**Nome:** ${leadName}\n**Situação Cadastral:** REGULAR\n**Validação:** Aprovado para financiamento.`;
+            const availableBrokers = brokers.filter(b => b.status === 'Disponível');
+            const nextIndex = roundRobinIndex % availableBrokers.length;
+            assignedBroker = availableBrokers[nextIndex] || { name: 'Equipe', id: 'team', creci: '' };
+            setRoundRobinIndex(prev => prev + 1);
+            addBotMessage(`🎉 **Atendimento Direcionado!**\nO corretor sorteado para te atender é o **${assignedBroker.name}** (${assignedBroker.creci}).\n\nEle já recebeu toda a sua ficha cadastral e entrará em contato em instantes no seu WhatsApp pessoal. Obrigado pelo contato!`, 1000);
           }
-        } else {
-          leadName = "Empresa Comercial Simulação Ltda";
-          leadDoc = userMsg;
-
-          if (apiToken) {
-            try {
-              const cleanCnpj = leadDoc.replace(/\D/g, '');
-              const res = await fetch(`https://api.invertexto.com/v1/cnpj/${cleanCnpj}?token=${apiToken}`);
-              const data = await res.json();
-              if (data && data.nome_fantasia) {
-                leadName = data.nome_fantasia || data.razao_social || leadName;
-                infoText = `✅ **CNPJ Ativo!**\n**Razão Social:** ${data.razao_social || leadName}\n**Nome Fantasia:** ${data.nome_fantasia || '-'}\n**Situação Cadastral:** ${data.situacao || 'ATIVA'}\n**Regime Tributário:** ${data.regime_tributario || 'Lucro Presumido'}`;
-              } else if (data && data.error) {
-                addBotMessage(`⚠️ **CNPJ não encontrado!** ${data.error}`, 1000);
-                setTimeout(() => setSimStep(6), 2000);
-                return;
-              } else {
-                infoText = `✅ **CNPJ Ativo!**\n**Razão Social:** ${leadName}\n**Situação Cadastral:** ATIVA`;
-              }
-            } catch {
-              addBotMessage(`⚠️ Erro ao consultar a API. Usando validação simulada.`, 1000);
-              infoText = `✅ **CNPJ Ativo (simulado)!**\n**Razão Social:** ${leadName}\n**Situação Cadastral:** ATIVA`;
-            }
-          } else {
-            infoText = `✅ **CNPJ Ativo!**\n**Razão Social:** ${leadName}\n**Situação Cadastral:** ATIVA\n**Regime Tributário:** Lucro Presumido`;
+          setLeads(prev => [{
+            id: 'L' + (prev.length + 1).toString().padStart(2, '0'),
+            name: leadName, document: faixaEscolhida.value, docType: `Escore ${faixaEscolhida.escore}`,
+            docStatus: 'Regular', propertyName: selectedProperty?.title || '',
+            brokerName: assignedBroker.name, brokerCreci: assignedBroker.creci || '',
+            stage: 'Novo', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999997777'
+          }, ...prev]);
+          if (accountMode === 'team') {
+            setBrokers(prevBrokers => prevBrokers.map(b => b.id === assignedBroker.id ? { ...b, leadsCount: b.leadsCount + 1 } : b));
           }
-        }
-
-        if (selectedProperty.rule === 'CNPJ Ativo' && simLeadType === 'PF') {
-          addBotMessage(`⚠️ **Aviso de Restrição**:\nEste imóvel comercial exige exclusivamente cadastro corporativo (CNPJ). Seus dados de CPF foram validados, mas não atendem aos critérios deste imóvel.`, 1000);
-          setTimeout(() => {
-            addBotMessage("Estou encerrando nosso contato por aqui. Caso tenha interesse em outros imóveis residenciais, fique à vontade para acessar nosso portal. Obrigado! 🙏", 1000);
-            setLeads(prev => [{
-              id: 'L' + (prev.length + 1).toString().padStart(2, '0'),
-              name: leadName, document: leadDoc, docType: simLeadType,
-              docStatus: 'Inválido p/ Imóvel', propertyName: selectedProperty.title,
-              brokerName: 'Sistema (Desqualificado)', brokerCreci: '',
-              stage: 'Perdido', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999998888'
-            }, ...prev]);
-            setSimStep(6);
-          }, 2200);
-        } else {
-          addBotMessage(infoText, 500);
-          setTimeout(() => {
-            setSimStep(5);
-            addBotMessage("Seus dados atendem a todos os requisitos do imóvel! 🎰 **Roteando atendimento...** Sorteando corretor de plantão na roleta da equipe comercial...", 1000);
-            setTimeout(() => {
-              let assignedBroker;
-              if (accountMode === 'solo') {
-                assignedBroker = { name: soloProfile.name, id: 'solo', creci: soloProfile.creci };
-                addBotMessage(`🎉 **Lead Direcionado!**\nO lead foi registrado diretamente para o corretor **${soloProfile.name}** (${soloProfile.creci}).\n\nVocê receberá a notificação no WhatsApp ${soloProfile.whatsapp}. Obrigado pelo contato!`, 1000);
-              } else {
-                const availableBrokers = brokers.filter(b => b.status === 'Disponível');
-                const nextIndex = roundRobinIndex % availableBrokers.length;
-                assignedBroker = availableBrokers[nextIndex];
-                setRoundRobinIndex(prev => prev + 1);
-                addBotMessage(`🎉 **Atendimento Direcionado!**\nO corretor sorteado para te atender é o **${assignedBroker.name}** (${assignedBroker.creci}).\n\nEle já recebeu toda a sua ficha cadastral e entrará em contato em instantes no seu WhatsApp pessoal. Obrigado pelo contato!`, 1000);
-              }
-              setLeads(prev => [{
-                id: 'L' + (prev.length + 1).toString().padStart(2, '0'),
-                name: leadName, document: leadDoc, docType: simLeadType,
-                docStatus: 'Regular', propertyName: selectedProperty.title,
-                brokerName: assignedBroker.name, brokerCreci: assignedBroker.creci || '',
-                stage: 'Novo', date: new Date().toLocaleDateString('pt-BR'), whatsapp: '61999997777'
-              }, ...prev]);
-              if (accountMode === 'team') {
-                setBrokers(prevBrokers => prevBrokers.map(b => b.id === assignedBroker.id ? { ...b, leadsCount: b.leadsCount + 1 } : b));
-              }
-              setProperties(prevProps => prevProps.map(p => p.id === selectedProperty.id ? { ...p, leadsCount: p.leadsCount + 1 } : p));
-              setSimStep(6);
-            }, 2500);
-          }, 2000);
-        }
-      };
-      consultarDocumento();
+          setProperties(prevProps => prevProps.map(p => p.id === selectedProperty.id ? { ...p, leadsCount: p.leadsCount + 1 } : p));
+          setSimStep(6);
+        }, 2000);
+      }
     }
   };
 
@@ -2133,10 +2074,10 @@ NÃO continue a conversa depois disso.`;
                             className="chat-input"
                             placeholder={
                               simStep === 2 
-                                ? "Digite 1 para PF ou 2 para PJ..." 
-                                : simStep === 3 && simLeadType === 'PF'
-                                ? "Digite: Seu Nome, CPF, Data Nascimento..."
-                                : "Digite o CNPJ da empresa..."
+                                ? "Digite seu nome completo..."
+                                : simStep === 3
+                                ? "Digite o número da sua faixa de renda..."
+                                : "Digite sua resposta..."
                             }
                             value={typedMessage}
                             onChange={(e) => setTypedMessage(e.target.value)}
