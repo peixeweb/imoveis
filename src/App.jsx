@@ -545,7 +545,7 @@ NÃO escreva mais nada depois disso.`;
     if (!property) {
       return <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontFamily: 'system-ui, sans-serif', fontSize: '18px' }}>Imóvel não encontrado</div>;
     }
-    const isQualified = chatMessages.some(m => m.sender === 'bot' && m.text.includes('perfil foi aprovado'));
+    const isQualified = chatMessages.some(m => m.sender === 'bot' && m.text.toLowerCase().includes('aprovado'));
     const brokerWa = property.brokerWhatsapp || soloProfile.whatsapp || (brokers.find(b => b.name === property.brokerName)?.whatsapp) || '559999999999';
     return (
       <div style={{ height: '100vh', backgroundImage: 'url(/imoveis/sao_paulo.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', width: '100%', position: 'relative', overflow: 'hidden' }}>
@@ -654,9 +654,9 @@ NÃO escreva mais nada depois disso.`;
       </div>
 
       {/* RIGHT SIDE: WHATSAPP CHAT FLOATING WIDGET */}
-      <div style={{ position: 'fixed', bottom: '24px', right: '24px', width: '380px', height: '540px', zIndex: 1000, borderRadius: '16px', overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column' }}>
+      <div className="public-chat-widget">
         {simStep === 0 ? (
-          <div style={{ flex: 1, background: '#0b141a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#8696a0', fontSize: '14px', gap: '12px' }}>
+          <div style={{ flex: 1, background: '#0b141a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#8696a0', fontSize: '14px', gap: '12px', borderRadius: '16px' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#202c33', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ width: '16px', height: '16px', border: '2px solid #8696a0', borderTopColor: 'transparent', borderRadius: '50%', animation: 'pulse 1s linear infinite' }}></div>
             </div>
@@ -664,11 +664,19 @@ NÃO escreva mais nada depois disso.`;
           </div>
         ) : (
           <div className="whatsapp-chat-container" style={{ height: '100%', borderRadius: '16px' }}>
-            <div className="chat-header">
-              <div className="chat-avatar bot">IA</div>
-              <div className="chat-user-info">
-                <h4>Atendente Virtual</h4>
-                <p>{isTyping ? 'digitando...' : 'Online'}</p>
+            <div className="chat-header" style={{ flexDirection: 'column', gap: '8px', padding: '10px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
+                {(property.images?.length > 0 ? property.images : [{ url: property.image, ratio: '1:1' }]).slice(0, 1).map((img, idx) => (
+                  <img key={idx} src={img.url} style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
+                ))}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h4 style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{property.title}</h4>
+                  <p style={{ fontSize: '12px', color: '#00a884', fontWeight: 600 }}>{property.price.startsWith('R$') ? property.price : `R$ ${property.price}`}</p>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div className="chat-avatar bot" style={{ width: '28px', height: '28px', fontSize: '10px', marginLeft: 'auto' }}>IA</div>
+                  <p style={{ fontSize: '10px', color: '#8696a0', marginTop: '2px' }}>{isTyping ? 'digitando...' : 'Online'}</p>
+                </div>
               </div>
             </div>
             <div className="chat-body" ref={chatBodyRef}>
