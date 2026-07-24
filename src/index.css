@@ -931,15 +931,18 @@ body {
   .sidebar {
     position: fixed;
     top: 0;
-    left: -280px;
+    left: 0;
     z-index: 1002;
     height: 100vh;
-    transition: left 0.3s ease;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
     width: 260px;
+    visibility: hidden;
   }
 
   .sidebar.open {
-    left: 0;
+    transform: translateX(0);
+    visibility: visible;
   }
 
   .sidebar-overlay {
