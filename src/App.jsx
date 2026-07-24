@@ -201,10 +201,12 @@ export default function App() {
     
     let brokerWhatsapp = '';
     if (accountMode === 'solo') {
-      brokerWhatsapp = soloProfile.whatsapp;
+      brokerWhatsapp = soloProfile.whatsapp || newProperty.brokerWhatsapp || '';
     } else if (newProperty.brokerName) {
       const found = brokers.find(b => b.name === newProperty.brokerName);
-      if (found) brokerWhatsapp = found.whatsapp || '';
+      if (found) brokerWhatsapp = found.whatsapp || newProperty.brokerWhatsapp || '';
+    } else {
+      brokerWhatsapp = newProperty.brokerWhatsapp || '';
     }
     
     const created = {
@@ -559,7 +561,7 @@ NÃO escreva mais nada depois disso.`;
       return <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontFamily: 'system-ui, sans-serif', fontSize: '18px' }}>Imóvel não encontrado</div>;
     }
     const isQualified = chatMessages.some(m => m.sender === 'bot' && m.text.toLowerCase().includes('aprovado'));
-    const brokerWa = property.brokerWhatsapp || soloProfile.whatsapp || (brokers.find(b => b.name === property.brokerName)?.whatsapp) || '559999999999';
+    const brokerWa = property.brokerWhatsapp || '559999999999';
     return (
       <div style={{ height: '100vh', backgroundImage: 'url(/imoveis/sao_paulo.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', width: '100%', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(248, 250, 252, 0.85)', zIndex: 0 }}></div>
