@@ -912,9 +912,60 @@ body {
     bottom: 8px;
     right: 8px;
     width: calc(100% - 16px);
-    height: 280px;
+    height: 200px;
     border-radius: 10px;
-    max-width: 280px;
+    max-width: 220px;
+  }
+
+  .public-chat-widget .chat-header {
+    padding: 6px 10px !important;
+  }
+
+  .public-chat-widget .chat-header h4 {
+    font-size: 11px !important;
+  }
+
+  .public-chat-widget .chat-header p {
+    font-size: 9px !important;
+  }
+
+  .public-chat-widget .chat-header img {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .public-chat-widget .chat-avatar {
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 8px !important;
+  }
+
+  .public-chat-widget .chat-body {
+    padding: 8px 10px !important;
+  }
+
+  .public-chat-widget .message {
+    font-size: 11px !important;
+    padding: 5px 8px !important;
+  }
+
+  .public-chat-widget .chat-input-area {
+    padding: 6px 8px !important;
+  }
+
+  .public-chat-widget .chat-input {
+    font-size: 11px !important;
+    padding: 6px 10px !important;
+  }
+
+  .public-chat-widget .chat-send-btn {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .public-chat-widget .chat-send-btn svg {
+    width: 14px !important;
+    height: 14px !important;
   }
 }
 
