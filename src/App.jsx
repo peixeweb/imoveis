@@ -178,10 +178,16 @@ export default function App() {
 
   // ===== DATA LOADERS =====
   const loadCorretorProfile = async (userId) => {
-    const { data } = await supabase.from('corretores').select('*').eq('user_id', userId).single();
-    if (data) {
-      setCorretorProfile(data);
-      await loadAllData(data);
+    const { data, error } = await supabase.from('corretores').select('*').eq('user_id', userId);
+    if (error) { alert('Erro ao buscar perfil: ' + error.message); setAppState('auth'); setAuthScreen('signup-select'); return; }
+    if (data && data.length === 1) {
+      setCorretorProfile(data[0]);
+      await loadAllData(data[0]);
+      setAppState('app');
+    } else if (data && data.length > 1) {
+      // Múltiplos perfis - pega o primeiro e avisa
+      setCorretorProfile(data[0]);
+      await loadAllData(data[0]);
       setAppState('app');
     } else {
       setAppState('auth');
