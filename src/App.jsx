@@ -714,8 +714,8 @@ export default function App() {
             <div className="form-group"><label>Nome Completo *</label><input type="text" className="form-control" placeholder="Ex: Roberto Silva" value={signupNome} onChange={e => setSignupNome(e.target.value)} required /></div>
             <div className="form-group"><label>CRECI *</label><input type="text" className="form-control" placeholder="Ex: CRECI-DF 12345" value={signupCreci} onChange={e => setSignupCreci(e.target.value)} required /></div>
             <div className="form-group"><label>WhatsApp (com DDD)</label><input type="text" className="form-control" placeholder="Ex: 61999990000" value={signupWhatsapp} onChange={e => setSignupWhatsapp(e.target.value)} /></div>
-            <div className="form-group"><label>E-mail *</label><input type="email" className="form-control" placeholder="seu@email.com" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required /></div>
-            <div className="form-group"><label>Senha *</label><input type="password" className="form-control" placeholder="Mínimo 6 caracteres" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} required /></div>
+            <div className="form-group"><label>E-mail *</label><input type="email" autoComplete="off" className="form-control" placeholder="seu@email.com" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required /></div>
+            <div className="form-group"><label>Senha *</label><input type="password" autoComplete="new-password" className="form-control" placeholder="Mínimo 6 caracteres" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} required /></div>
             <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} disabled={authLoading}>{authLoading ? 'Criando conta...' : 'Criar Conta e Entrar'}</button>
           </form>
           <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} onClick={() => { setAuthScreen('signup-select'); setAuthError(''); }}>Voltar</button>
@@ -739,8 +739,8 @@ export default function App() {
             <div className="form-group"><label>Seu Nome (Gestor) *</label><input type="text" className="form-control" placeholder="Ex: Ana Costa" value={signupNome} onChange={e => setSignupNome(e.target.value)} required /></div>
             <div className="form-group"><label>CRECI *</label><input type="text" className="form-control" placeholder="Ex: CRECI-SP 54321" value={signupCreci} onChange={e => setSignupCreci(e.target.value)} required /></div>
             <div className="form-group"><label>WhatsApp (com DDD)</label><input type="text" className="form-control" placeholder="Ex: 11999990000" value={signupWhatsapp} onChange={e => setSignupWhatsapp(e.target.value)} /></div>
-            <div className="form-group"><label>E-mail *</label><input type="email" className="form-control" placeholder="gestor@imobiliaria.com" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required /></div>
-            <div className="form-group"><label>Senha *</label><input type="password" className="form-control" placeholder="Mínimo 6 caracteres" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} required /></div>
+            <div className="form-group"><label>E-mail *</label><input type="email" autoComplete="off" className="form-control" placeholder="gestor@imobiliaria.com" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required /></div>
+            <div className="form-group"><label>Senha *</label><input type="password" autoComplete="new-password" className="form-control" placeholder="Mínimo 6 caracteres" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} required /></div>
             <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px', background: 'linear-gradient(135deg, #10b981, #059669)' }} disabled={authLoading}>{authLoading ? 'Criando conta...' : 'Criar Equipe e Entrar'}</button>
           </form>
           <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} onClick={() => { setAuthScreen('signup-select'); setAuthError(''); }}>Voltar</button>
@@ -758,8 +758,8 @@ export default function App() {
           <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'white', margin: '0 0 24px', textAlign: 'center' }}>Entrar na plataforma</h2>
           {authError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px 14px', color: '#ef4444', fontSize: '13px', marginBottom: '16px' }}>{authError}</div>}
           <form onSubmit={handleLogin}>
-            <div className="form-group"><label>E-mail</label><input type="email" className="form-control" placeholder="seu@email.com" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required /></div>
-            <div className="form-group"><label>Senha</label><input type="password" className="form-control" placeholder="Sua senha" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required /></div>
+            <div className="form-group"><label>E-mail</label><input type="email" autoComplete="off" className="form-control" placeholder="seu@email.com" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required /></div>
+            <div className="form-group"><label>Senha</label><input type="password" autoComplete="new-password" className="form-control" placeholder="Sua senha" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required /></div>
             <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} disabled={authLoading}>{authLoading ? 'Entrando...' : 'Entrar'}</button>
           </form>
           <div style={{ textAlign: 'center', marginTop: '20px', borderTop: '1px solid #1f2937', paddingTop: '20px' }}>
