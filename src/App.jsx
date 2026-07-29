@@ -147,10 +147,14 @@ export default function App() {
     }
 
     // Check existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         setCurrentUser(session.user);
-        loadCorretorProfile(session.user.id);
+        const found = await loadCorretorProfile(session.user.id);
+        if (!found) {
+          setSignupEmail(session.user.email || '');
+          setAuthScreen('signup-select');
+        }
       } else {
         setAppState('auth');
       }
@@ -179,19 +183,17 @@ export default function App() {
   // ===== DATA LOADERS =====
   const loadCorretorProfile = async (userId) => {
     const { data, error } = await supabase.from('corretores').select('*').eq('user_id', userId);
-    if (error) { alert('Erro ao buscar perfil: ' + error.message); setAppState('auth'); setAuthScreen('signup-select'); return; }
-    if (data && data.length === 1) {
+    if (error) { alert('Erro ao buscar perfil: ' + error.message); setAppState('auth'); setAuthScreen('signup-select'); return false; }
+    if (data && data.length >= 1) {
       setCorretorProfile(data[0]);
+      setActiveTab(data[0].modo === 'team' ? 'equipe' : 'dashboard');
       await loadAllData(data[0]);
       setAppState('app');
-    } else if (data && data.length > 1) {
-      // Múltiplos perfis - pega o primeiro e avisa
-      setCorretorProfile(data[0]);
-      await loadAllData(data[0]);
-      setAppState('app');
+      return true;
     } else {
       setAppState('auth');
       setAuthScreen('signup-select');
+      return false;
     }
   };
 
@@ -207,66 +209,85 @@ export default function App() {
       if (error) { setAuthError('E-mail ou senha incorretos. Verifique e tente novamente.'); setAuthLoading(false); return; }
       if (!data?.user) { setAuthError('Usuário não encontrado.'); setAuthLoading(false); return; }
       setCurrentUser(data.user);
-      await loadCorretorProfile(data.user.id);
+      const found = await loadCorretorProfile(data.user.id);
+      if (!found) {
+        // Pré-preenche o email do cadastro com o email do login
+        setSignupEmail(loginEmail);
+        setSignupPassword(loginPassword);
+        setAuthError('Perfil não encontrado. Escolha como deseja se cadastrar.');
+        setAuthScreen('signup-select');
+      }
     } catch (err) {
       setAuthError('Erro inesperado: ' + err.message);
     }
     setAuthLoading(false);
+  };
+
+  const signupOrCreateProfile = async (modo, equipeData) => {
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const { data: authData, error: authErr } = await supabase.auth.signUp({ email: signupEmail, password: signupPassword });
+      if (authErr) { setAuthError(authErr.message); setAuthLoading(false); return false; }
+      let userId;
+      let loginData = null;
+      if (authData?.user) {
+        userId = authData.user.id;
+      } else {
+        // Email já existe - tenta login para pegar o user_id
+        const { data: ld, error: loginErr } = await supabase.auth.signInWithPassword({ email: signupEmail, password: signupPassword });
+        if (loginErr || !ld?.user) { setAuthError('Este e-mail já está cadastrado com outra senha. Faça login.'); setAuthLoading(false); return false; }
+        loginData = ld;
+        userId = ld.user.id;
+      }
+      // Verifica se já tem perfil
+      const { data: existing } = await supabase.from('corretores').select('id').eq('user_id', userId);
+      if (existing && existing.length > 0) {
+        // Já tem perfil - faz login direto
+        setCurrentUser(authData?.user || loginData.user);
+        await loadCorretorProfile(userId);
+        setAuthLoading(false);
+        return true;
+      }
+      // Cria o perfil
+      let equipeId = null;
+      if (modo === 'team') {
+        if (!equipeData) { setAuthError('Dados da equipe não informados.'); setAuthLoading(false); return false; }
+        const { data: eqData, error: eqErr } = await supabase.from('equipes').insert({ nome: equipeData.nome, admin_user_id: userId }).select().single();
+        if (eqErr) { setAuthError('Erro ao criar equipe: ' + eqErr.message); setAuthLoading(false); return false; }
+        equipeId = eqData.id;
+      }
+      const { data: corrData, error: corrErr } = await supabase.from('corretores').insert({
+        user_id: userId,
+        nome: signupNome, whatsapp: signupWhatsapp, creci: signupCreci,
+        modo, equipe_id: equipeId, equipe_nome: equipeData?.nome || null,
+        status: 'ativo', is_admin: true,
+      }).select().single();
+      if (corrErr) { setAuthError('Erro ao criar perfil: ' + corrErr.message); setAuthLoading(false); return false; }
+      setCurrentUser(authData?.user || loginData.user);
+      setCorretorProfile(corrData);
+      await loadAllData(corrData);
+      setAppState('app');
+      setActiveTab(modo === 'team' ? 'equipe' : 'dashboard');
+      setAuthLoading(false);
+      return true;
+    } catch (err) {
+      setAuthError('Erro inesperado: ' + err.message);
+      setAuthLoading(false);
+      return false;
+    }
   };
 
   const handleSignupSolo = async (e) => {
     e.preventDefault();
     if (!signupNome || !signupCreci || !signupEmail || !signupPassword) { setAuthError('Preencha todos os campos obrigatórios.'); return; }
-    setAuthLoading(true);
-    setAuthError('');
-    try {
-      const { data: authData, error: authErr } = await supabase.auth.signUp({ email: signupEmail, password: signupPassword });
-      if (authErr) { setAuthError(authErr.message); setAuthLoading(false); return; }
-      if (!authData?.user) { setAuthError('Este e-mail já está cadastrado. Faça login.'); setAuthLoading(false); return; }
-      const { data: corrData, error: corrErr } = await supabase.from('corretores').insert({
-        user_id: authData.user.id,
-        nome: signupNome, whatsapp: signupWhatsapp, creci: signupCreci,
-        modo: 'solo', status: 'ativo', is_admin: true,
-      }).select().single();
-      if (corrErr) { setAuthError('Erro ao criar perfil: ' + corrErr.message); setAuthLoading(false); return; }
-      setCurrentUser(authData.user);
-      setCorretorProfile(corrData);
-      await loadAllData(corrData);
-      setAppState('app');
-      setActiveTab('dashboard');
-    } catch (err) {
-      setAuthError('Erro inesperado: ' + err.message);
-    }
-    setAuthLoading(false);
+    signupOrCreateProfile('solo', null);
   };
 
   const handleSignupTeam = async (e) => {
     e.preventDefault();
     if (!signupEquipeNome || !signupNome || !signupCreci || !signupEmail || !signupPassword) { setAuthError('Preencha todos os campos obrigatórios.'); return; }
-    setAuthLoading(true);
-    setAuthError('');
-    try {
-      const { data: authData, error: authErr } = await supabase.auth.signUp({ email: signupEmail, password: signupPassword });
-      if (authErr) { setAuthError(authErr.message); setAuthLoading(false); return; }
-      if (!authData?.user) { setAuthError('Este e-mail já está cadastrado. Faça login.'); setAuthLoading(false); return; }
-      const { data: equipeData, error: equipeErr } = await supabase.from('equipes').insert({ nome: signupEquipeNome, admin_user_id: authData.user.id }).select().single();
-      if (equipeErr) { setAuthError('Erro ao criar equipe: ' + equipeErr.message); setAuthLoading(false); return; }
-      const { data: corrData, error: corrErr } = await supabase.from('corretores').insert({
-        user_id: authData.user.id,
-        nome: signupNome, whatsapp: signupWhatsapp, creci: signupCreci,
-        modo: 'team', equipe_id: equipeData.id, equipe_nome: signupEquipeNome,
-        status: 'ativo', is_admin: true,
-      }).select().single();
-      if (corrErr) { setAuthError('Erro ao criar perfil: ' + corrErr.message); setAuthLoading(false); return; }
-      setCurrentUser(authData.user);
-      setCorretorProfile(corrData);
-      await loadAllData(corrData);
-      setAppState('app');
-      setActiveTab('equipe');
-    } catch (err) {
-      setAuthError('Erro inesperado: ' + err.message);
-    }
-    setAuthLoading(false);
+    signupOrCreateProfile('team', { nome: signupEquipeNome });
   };
 
   const handleLogout = async () => {
