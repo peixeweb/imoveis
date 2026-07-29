@@ -1189,4 +1189,31 @@ body {
     flex-direction: column;
     height: auto;
   }
+
+  .photo-upload-row {
+    flex-direction: column;
+  }
+
+  .photo-upload-file,
+  .photo-upload-ratio {
+    flex: none;
+    width: 100%;
+  }
+}
+
+.photo-upload-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.photo-upload-file {
+  flex: 2;
+  min-width: 0;
+}
+
+.photo-upload-ratio {
+  flex: 1;
+  min-width: 0;
 }

@@ -87,13 +87,14 @@ export default function useData() {
   const handleCreateProperty = useCallback(async (newProperty, corretorProfile, brokers) => {
     if (!newProperty.title || !newProperty.price) return null;
 
+    let cId = corretorProfile.id;
     let cNome = corretorProfile.nome;
     let cCreci = corretorProfile.creci;
     let cWhatsapp = corretorProfile.whatsapp;
 
     if (corretorProfile.modo === 'team' && newProperty.brokerName) {
       const found = brokers.find(b => b.name === newProperty.brokerName);
-      if (found) { cNome = found.name; cCreci = found.creci; cWhatsapp = found.whatsapp; }
+      if (found) { cId = found.id; cNome = found.name; cCreci = found.creci; cWhatsapp = found.whatsapp; }
     }
 
     const { data, error } = await supabase.from('imoveis').insert({
@@ -101,7 +102,7 @@ export default function useData() {
       localizacao: newProperty.location, maps_link: newProperty.mapsLink,
       specs: newProperty.specs, regra: newProperty.rule,
       imagens: newProperty.images,
-      corretor_id: corretorProfile.id, corretor_nome: cNome, corretor_creci: cCreci, corretor_whatsapp: cWhatsapp,
+      corretor_id: cId, corretor_nome: cNome, corretor_creci: cCreci, corretor_whatsapp: cWhatsapp,
       equipe_id: corretorProfile.equipe_id || null,
       leads_count: 0,
     }).select().single();

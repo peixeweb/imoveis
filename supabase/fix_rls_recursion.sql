@@ -1,49 +1,39 @@
--- Fix: infinite recursion in RLS policies for corretores table
--- Execute this in Supabase SQL Editor
+-- Fix: infinite recursion in RLS policies
+-- Usa equipes.admin_user_id para evitar recursão em corretores
+-- Execute no SQL Editor do Supabase
 
--- 1. Helper function that bypasses RLS recursion
-CREATE OR REPLACE FUNCTION public.get_current_corretor()
-RETURNS TABLE (id UUID, equipe_id UUID, modo TEXT)
-SECURITY DEFINER
-SET search_path = public
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT c.id, c.equipe_id, c.modo
-  FROM corretores c
-  WHERE c.user_id = auth.uid()
-  LIMIT 1;
-$$;
-
--- 2. Drop recursive policies on corretores
+-- 1. Drop recursive policies on corretores
 DROP POLICY IF EXISTS "corretores_select_own" ON corretores;
+DROP POLICY IF EXISTS "corretores_insert_own" ON corretores;
 DROP POLICY IF EXISTS "corretores_update_own" ON corretores;
 DROP POLICY IF EXISTS "corretores_delete_admin" ON corretores;
 
--- 3. Recreate corretores policies without recursion
+-- 2. Recreate corretores policies without recursion
 CREATE POLICY "corretores_select_own" ON corretores
   FOR SELECT USING (
     user_id = auth.uid()
-    OR equipe_id = (SELECT equipe_id FROM public.get_current_corretor())
+    OR equipe_id IN (SELECT id FROM equipes WHERE admin_user_id = auth.uid())
   );
+
+CREATE POLICY "corretores_insert_own" ON corretores
+  FOR INSERT WITH CHECK (true);
 
 CREATE POLICY "corretores_update_own" ON corretores
   FOR UPDATE USING (
     user_id = auth.uid()
     OR (
       is_admin = false
-      AND equipe_id = (SELECT equipe_id FROM public.get_current_corretor())
-      AND (SELECT modo FROM public.get_current_corretor()) = 'team'
+      AND equipe_id IN (SELECT id FROM equipes WHERE admin_user_id = auth.uid())
     )
   );
 
 CREATE POLICY "corretores_delete_admin" ON corretores
   FOR DELETE USING (
-    equipe_id = (SELECT equipe_id FROM public.get_current_corretor())
+    equipe_id IN (SELECT id FROM equipes WHERE admin_user_id = auth.uid())
     AND is_admin = false
   );
 
--- 4. Drop and recreate policies on imoveis that reference corretores
+-- 3. Drop and recreate policies on imoveis that reference corretores
 DROP POLICY IF EXISTS "imoveis_select_own" ON imoveis;
 DROP POLICY IF EXISTS "imoveis_insert_own" ON imoveis;
 DROP POLICY IF EXISTS "imoveis_update_own" ON imoveis;
@@ -51,55 +41,61 @@ DROP POLICY IF EXISTS "imoveis_delete_own" ON imoveis;
 
 CREATE POLICY "imoveis_select_own" ON imoveis
   FOR SELECT USING (
-    corretor_id = (SELECT id FROM public.get_current_corretor())
-    OR equipe_id = (SELECT equipe_id FROM public.get_current_corretor())
+    corretor_id IN (SELECT id FROM corretores WHERE user_id = auth.uid())
+    OR equipe_id IN (SELECT id FROM equipes WHERE admin_user_id = auth.uid())
+    OR equipe_id IN (SELECT equipe_id FROM corretores WHERE user_id = auth.uid())
   );
 
 CREATE POLICY "imoveis_insert_own" ON imoveis
   FOR INSERT WITH CHECK (
-    corretor_id = (SELECT id FROM public.get_current_corretor())
+    corretor_id IN (SELECT id FROM corretores WHERE user_id = auth.uid())
+    OR equipe_id IN (SELECT id FROM equipes WHERE admin_user_id = auth.uid())
   );
 
 CREATE POLICY "imoveis_update_own" ON imoveis
   FOR UPDATE USING (
-    corretor_id = (SELECT id FROM public.get_current_corretor())
+    corretor_id IN (SELECT id FROM corretores WHERE user_id = auth.uid())
   );
 
 CREATE POLICY "imoveis_delete_own" ON imoveis
   FOR DELETE USING (
-    corretor_id = (SELECT id FROM public.get_current_corretor())
+    corretor_id IN (SELECT id FROM corretores WHERE user_id = auth.uid())
   );
 
--- 5. Drop and recreate policies on leads that reference corretores
+-- 4. Drop and recreate policies on leads that reference corretores
 DROP POLICY IF EXISTS "leads_select_own" ON leads;
 DROP POLICY IF EXISTS "leads_update_own" ON leads;
 DROP POLICY IF EXISTS "leads_delete_own" ON leads;
 
 CREATE POLICY "leads_select_own" ON leads
   FOR SELECT USING (
-    corretor_id = (SELECT id FROM public.get_current_corretor())
-    OR equipe_id = (SELECT equipe_id FROM public.get_current_corretor())
+    corretor_id IN (SELECT id FROM corretores WHERE user_id = auth.uid())
+    OR equipe_id IN (SELECT id FROM equipes WHERE admin_user_id = auth.uid())
+    OR equipe_id IN (SELECT equipe_id FROM corretores WHERE user_id = auth.uid())
   );
 
 CREATE POLICY "leads_update_own" ON leads
   FOR UPDATE USING (
-    corretor_id = (SELECT id FROM public.get_current_corretor())
+    corretor_id IN (SELECT id FROM corretores WHERE user_id = auth.uid())
   );
 
 CREATE POLICY "leads_delete_own" ON leads
   FOR DELETE USING (
-    corretor_id = (SELECT id FROM public.get_current_corretor())
+    corretor_id IN (SELECT id FROM corretores WHERE user_id = auth.uid())
   );
 
--- 6. Also fix equipes policies to use the function
+-- 5. Fix equipes policies (NÃO consultar corretores para evitar recursão)
 DROP POLICY IF EXISTS "equipes_select_own" ON equipes;
+DROP POLICY IF EXISTS "equipes_insert_admin" ON equipes;
 DROP POLICY IF EXISTS "equipes_update_admin" ON equipes;
 
 CREATE POLICY "equipes_select_own" ON equipes
   FOR SELECT USING (
-    id = (SELECT equipe_id FROM public.get_current_corretor())
-    OR admin_user_id = auth.uid()
+    admin_user_id = auth.uid()
   );
+
+CREATE POLICY "equipes_insert_admin" ON equipes
+  FOR INSERT WITH CHECK (admin_user_id = auth.uid());
 
 CREATE POLICY "equipes_update_admin" ON equipes
   FOR UPDATE USING (admin_user_id = auth.uid());

@@ -959,10 +959,10 @@ export default function App() {
                 <div className="form-group"><label>Especificações</label><input type="text" className="form-control" placeholder="Ex: 3 Quartos | 2 Banheiros | 2 Vagas" value={newProperty.specs} onChange={e => setNewProperty({ ...newProperty, specs: e.target.value })} required /></div>
                 <div className="form-group" style={{ border: '1px dashed #1f2937', borderRadius: '8px', padding: '16px', backgroundColor: 'rgba(255,255,255,0.01)' }}>
                   <label style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginBottom: '12px', display: 'block' }}>Fotos do Imóvel</label>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', marginBottom: '12px' }}>
-                    <div style={{ flex: 2 }}><input type="file" id="property-image-file-input" className="form-control" accept="image/*" onChange={handleTempImageUploadChange} style={{ padding: '8px' }} /></div>
-                    <div style={{ flex: 1 }}><select className="form-control" value={tempImageRatio} onChange={e => setTempImageRatio(e.target.value)}><option value="1:1">Proporção 1:1</option><option value="9:16">Proporção 9:16</option></select></div>
-                    <button type="button" className="btn btn-primary" onClick={handleAddTempImage} disabled={!tempImagePreview} style={{ height: '42px', padding: '0 16px' }}>Adicionar</button>
+                  <div className="photo-upload-row">
+                    <div className="photo-upload-file"><input type="file" id="property-image-file-input" className="form-control" accept="image/*" onChange={handleTempImageUploadChange} style={{ padding: '8px' }} /></div>
+                    <div className="photo-upload-ratio"><select className="form-control" value={tempImageRatio} onChange={e => setTempImageRatio(e.target.value)}><option value="1:1">Proporção 1:1</option><option value="9:16">Proporção 9:16</option></select></div>
+                    <button type="button" className="btn btn-primary" onClick={handleAddTempImage} disabled={!tempImagePreview} style={{ height: '42px', padding: '0 16px', whiteSpace: 'nowrap' }}>Adicionar</button>
                   </div>
                   {tempImagePreview && <div style={{ marginBottom: '16px' }}><p style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Preview:</p><div style={{ width: '120px', height: '120px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #2563eb' }}><img src={tempImagePreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div></div>}
                   {newProperty.images.length > 0 && <div style={{ marginTop: '16px' }}><p style={{ fontSize: '12px', fontWeight: 600, color: 'white', marginBottom: '8px' }}>Fotos Adicionadas ({newProperty.images.length})</p><div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>{newProperty.images.map((img, idx) => <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #1f2937' }}><img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /><button type="button" onClick={() => handleRemoveImage(idx)} style={{ position: 'absolute', top: '2px', right: '2px', backgroundColor: 'rgba(239,68,68,0.9)', border: 'none', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>✕</button></div>)}</div></div>}
@@ -1154,6 +1154,7 @@ export default function App() {
             brokers={brokers}
             setBrokers={setBrokers}
             equipeId={corretorProfile?.equipe_id}
+            userId={currentUser?.id}
             onNavigate={(tab) => setActiveTab(tab)}
           />
         )}
@@ -1200,18 +1201,30 @@ function ProfileEditForm({ profile, onSave }) {
 }
 
 // ===== EQUIPE TAB =====
-function EquipeTab({ brokers, setBrokers, equipeId, onNavigate }) {
+function EquipeTab({ brokers, setBrokers, equipeId, userId, onNavigate }) {
   const [newBroker, setNewBroker] = useState({ name: '', whatsapp: '', creci: '' });
   const [adding, setAdding] = useState(false);
+  const [resolvedEquipeId, setResolvedEquipeId] = useState(equipeId);
+
+  useEffect(() => {
+    if (equipeId) { setResolvedEquipeId(equipeId); return; }
+    if (!userId) return;
+    supabase.from('equipes').select('id').eq('admin_user_id', userId).single().then(({ data, error }) => {
+      if (data) setResolvedEquipeId(data.id);
+      else alert('Diagnóstico: equipes não encontrada. Erro: ' + (error?.message || 'sem dados') + '. Seu userId: ' + userId);
+    });
+  }, [equipeId, userId]);
 
   const handleAddBroker = async (e) => {
     e.preventDefault();
     if (!newBroker.name || !newBroker.creci) return;
+    if (!resolvedEquipeId) { alert('Erro: ID da equipe não encontrado. Faça logout e login novamente.'); return; }
     setAdding(true);
     const { data, error } = await supabase.from('corretores').insert({
       nome: newBroker.name, whatsapp: newBroker.whatsapp, creci: newBroker.creci,
-      modo: 'team', equipe_id: equipeId, status: 'ativo', leads_count: 0, is_admin: false,
+      modo: 'team', equipe_id: resolvedEquipeId, status: 'ativo', leads_count: 0, is_admin: false,
     }).select().single();
+    if (error) { alert('Erro ao adicionar corretor: ' + error.message); setAdding(false); return; }
     if (data) setBrokers(prev => [...prev, mapBroker(data)]);
     setNewBroker({ name: '', whatsapp: '', creci: '' });
     setAdding(false);
