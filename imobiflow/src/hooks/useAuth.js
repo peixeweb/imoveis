@@ -10,15 +10,16 @@ export default function useAuth() {
   const [corretorProfile, setCorretorProfile] = useState(null);
 
   const loadCorretorProfile = useCallback(async (userId) => {
-    const { data } = await supabase.from('corretores').select('*').eq('user_id', userId).single();
-    if (data) {
-      setCorretorProfile(data);
+    const { data } = await supabase.from('corretores').select('*').eq('user_id', userId).order('created_at', { ascending: true });
+    const profile = data && data.length > 0 ? data[0] : null;
+    if (profile) {
+      setCorretorProfile(profile);
       setAppState('app');
     } else {
       setAppState('auth');
-      setAuthScreen('signup-select');
+      setAuthScreen('signup-complete');
     }
-    return data;
+    return profile;
   }, []);
 
   useEffect(() => {

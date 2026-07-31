@@ -92,6 +92,8 @@ export default function App() {
   const [signupEquipeNome, setSignupEquipeNome] = useState('');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [signupCompleteMode, setSignupCompleteMode] = useState('solo');
+  const [signupCompleteEquipeNome, setSignupCompleteEquipeNome] = useState('');
 
   // --- UI ---
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -153,7 +155,7 @@ export default function App() {
         const found = await loadCorretorProfile(session.user.id);
         if (!found) {
           setSignupEmail(session.user.email || '');
-          setAuthScreen('signup-select');
+          setAuthScreen('signup-complete');
         }
       } else {
         setAppState('auth');
@@ -192,7 +194,7 @@ export default function App() {
       return true;
     } else {
       setAppState('auth');
-      setAuthScreen('signup-select');
+      setAuthScreen('signup-complete');
       return false;
     }
   };
@@ -211,11 +213,10 @@ export default function App() {
       setCurrentUser(data.user);
       const found = await loadCorretorProfile(data.user.id);
       if (!found) {
-        // Pré-preenche o email do cadastro com o email do login
         setSignupEmail(loginEmail);
         setSignupPassword(loginPassword);
-        setAuthError('Perfil não encontrado. Escolha como deseja se cadastrar.');
-        setAuthScreen('signup-select');
+        setAuthError('Perfil de corretor não encontrado. Complete seu cadastro para entrar.');
+        setAuthScreen('signup-complete');
       }
     } catch (err) {
       setAuthError('Erro inesperado: ' + err.message);
@@ -297,6 +298,40 @@ export default function App() {
     e.preventDefault();
     if (!signupEquipeNome || !signupNome || !signupCreci || !signupEmail || !signupPassword) { setAuthError('Preencha todos os campos obrigatórios.'); return; }
     signupOrCreateProfile('team', { nome: signupEquipeNome });
+  };
+
+  const handleCompleteProfile = async (e) => {
+    e.preventDefault();
+    if (!currentUser) { setAuthError('Sessão expirada. Faça login novamente.'); setAppState('auth'); setAuthScreen('login'); return; }
+    if (!signupNome || !signupCreci) { setAuthError('Preencha seu nome completo e CRECI.'); return; }
+    if (signupCompleteMode === 'team' && !signupCompleteEquipeNome) { setAuthError('Informe o nome da imobiliária / equipe.'); return; }
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      let equipeId = null;
+      let equipeNome = null;
+      if (signupCompleteMode === 'team') {
+        const { data: eqData, error: eqErr } = await supabase.from('equipes').insert({ nome: signupCompleteEquipeNome, admin_user_id: currentUser.id }).select().single();
+        if (eqErr) { setAuthError('Erro ao criar equipe: ' + eqErr.message); setAuthLoading(false); return; }
+        equipeId = eqData.id;
+        equipeNome = eqData.nome;
+      }
+      const { data: corrData, error: corrErr } = await supabase.from('corretores').insert({
+        user_id: currentUser.id,
+        nome: signupNome, whatsapp: signupWhatsapp, creci: signupCreci,
+        modo: signupCompleteMode, equipe_id: equipeId, equipe_nome: equipeNome,
+        status: 'ativo', is_admin: true,
+      }).select().single();
+      if (corrErr) { setAuthError('Erro ao criar perfil: ' + corrErr.message); setAuthLoading(false); return; }
+      setCorretorProfile(corrData);
+      await loadAllData(corrData);
+      setAppState('app');
+      setActiveTab(signupCompleteMode === 'team' ? 'equipe' : 'dashboard');
+      setAuthLoading(false);
+    } catch (err) {
+      setAuthError('Erro inesperado: ' + err.message);
+      setAuthLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -732,6 +767,35 @@ export default function App() {
           </div>
         </div>
         <p style={{ color: '#94a3b8', fontSize: '14px', marginTop: '32px' }}>Já tem conta? <button onClick={() => setAuthScreen('login')} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>Fazer login</button></p>
+      </div>
+    );
+
+    // Complete profile (logged in but no corretor profile)
+    if (authScreen === 'signup-complete') return (
+      <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', padding: '40px 20px' }}>
+        <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '24px' }} />
+        <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '32px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ fontSize: '40px', marginBottom: '8px' }}>📝</div>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'white', margin: '0 0 4px' }}>Complete seu cadastro</h2>
+            <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>Sua conta <strong style={{ color: 'white' }}>{currentUser?.email}</strong> está criada, mas falta o perfil de corretor. Preencha abaixo para entrar no painel.</p>
+          </div>
+          {authError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px 14px', color: '#ef4444', fontSize: '13px', marginBottom: '16px' }}>{authError}</div>}
+          <form onSubmit={handleCompleteProfile}>
+            <div className="form-group"><label>Como você vai usar a plataforma? *</label>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                <button type="button" onClick={() => { setSignupCompleteMode('solo'); setAuthError(''); }} style={{ flex: 1, padding: '12px 8px', borderRadius: '10px', border: `1px solid ${signupCompleteMode === 'solo' ? '#2563eb' : '#1f2937'}`, background: signupCompleteMode === 'solo' ? 'rgba(37,99,235,0.12)' : '#0d121f', color: signupCompleteMode === 'solo' ? '#60a5fa' : '#94a3b8', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>🧑‍💼 Corretor Independente</button>
+                <button type="button" onClick={() => { setSignupCompleteMode('team'); setAuthError(''); }} style={{ flex: 1, padding: '12px 8px', borderRadius: '10px', border: `1px solid ${signupCompleteMode === 'team' ? '#10b981' : '#1f2937'}`, background: signupCompleteMode === 'team' ? 'rgba(16,185,129,0.12)' : '#0d121f', color: signupCompleteMode === 'team' ? '#34d399' : '#94a3b8', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>🏢 Imobiliária / Equipe</button>
+              </div>
+            </div>
+            {signupCompleteMode === 'team' && <div className="form-group"><label>Nome da Imobiliária / Equipe *</label><input type="text" className="form-control" placeholder="Ex: Imobiliária Exemplo" value={signupCompleteEquipeNome} onChange={e => setSignupCompleteEquipeNome(e.target.value)} required /></div>}
+            <div className="form-group"><label>Nome Completo *</label><input type="text" className="form-control" placeholder="Ex: Roberto Silva" value={signupNome} onChange={e => setSignupNome(e.target.value)} required /></div>
+            <div className="form-group"><label>CRECI *</label><input type="text" className="form-control" placeholder="Ex: CRECI-DF 12345" value={signupCreci} onChange={e => setSignupCreci(e.target.value)} required /></div>
+            <div className="form-group"><label>WhatsApp (com DDD)</label><input type="text" className="form-control" placeholder="Ex: 61999990000" value={signupWhatsapp} onChange={e => setSignupWhatsapp(e.target.value)} /></div>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} disabled={authLoading}>{authLoading ? 'Salvando...' : 'Concluir Cadastro e Entrar'}</button>
+          </form>
+          <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} onClick={handleLogout}>Sair da conta</button>
+        </div>
       </div>
     );
 
@@ -1245,9 +1309,9 @@ function EquipeTab({ brokers, setBrokers, equipeId, userId, onNavigate }) {
   useEffect(() => {
     if (equipeId) { setResolvedEquipeId(equipeId); return; }
     if (!userId) return;
-    supabase.from('equipes').select('id').eq('admin_user_id', userId).single().then(({ data, error }) => {
-      if (data) setResolvedEquipeId(data.id);
-      else alert('Diagnóstico: equipes não encontrada. Erro: ' + (error?.message || 'sem dados') + '. Seu userId: ' + userId);
+    supabase.from('equipes').select('id').eq('admin_user_id', userId).order('created_at', { ascending: true }).then(({ data }) => {
+      if (data && data.length > 0) setResolvedEquipeId(data[0].id);
+      else alert('Diagnóstico: equipe não encontrada. Seu userId: ' + userId);
     });
   }, [equipeId, userId]);
 
