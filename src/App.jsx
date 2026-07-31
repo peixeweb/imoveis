@@ -228,7 +228,7 @@ export default function App() {
     setAuthError('');
     try {
       const { data: authData, error: authErr } = await supabase.auth.signUp({ email: signupEmail, password: signupPassword });
-      if (authErr) { setAuthError(authErr.message); setAuthLoading(false); return false; }
+      if (authErr && !(authErr.code === 'user_already_exists' || authErr.status === 422 || /already registered/i.test(authErr.message || ''))) { setAuthError(authErr.message); setAuthLoading(false); return false; }
       let userId;
       let loginData = null;
       if (authData?.user) {
