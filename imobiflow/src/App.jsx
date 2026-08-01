@@ -447,7 +447,7 @@ export default function App() {
     if (GROQ_API_KEY) {
       const minEscore = getMinEscore(prop.rule);
       const faixasStr = INCOME_FAIXAS.map(f => `- ${f.value} → Escore ${f.escore}`).join('\n');
-      const systemPrompt = `Você é a "IA" da ImobiFlow, assistente virtual de uma imobiliária.\n\nIMÓVEL: ${prop.title}\nVALOR: ${prop.price}\nREGRAS: ${prop.rule}\n\nINSTRUÇÕES:\n- Fale português brasileiro, seja educado e breve.\n- Apresente-se e pergunte apenas o NOME do lead. NÃO peça renda ainda.`;
+      const systemPrompt = `Você é a "Clara", a IA do app (Site) da ImobiFlow, assistente virtual de uma imobiliária.\n\nIMÓVEL: ${prop.title}\nVALOR: ${prop.price}\nREGRAS: ${prop.rule}\n\nINSTRUÇÕES:\n- Fale português brasileiro, seja educado e breve.\n- No início de cada novo diálogo, apresente-se assim: "Olá! Eu sou a Clara, Em que posso lhe ajudar ?"\n- Em seguida pergunte apenas o NOME do lead. NÃO peça renda ainda.`;
       const greeting = await groqChat(systemPrompt, [{ role: 'user', content: 'Inicie o atendimento.' }]);
       if (greeting) {
         setChatMessages([{ sender: 'bot', text: greeting, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
@@ -574,7 +574,7 @@ export default function App() {
     setGroqHistory(updatedHistory);
     const minEscore = getMinEscore(prop?.rule);
     const faixasStr = INCOME_FAIXAS.map(f => `- ${f.label}: "${f.value}" → Escore ${f.escore}`).join('\n');
-    const systemPrompt = `Você é a "IA" da ImobiFlow. Seu papel é QUALIFICAR leads.\n\nIMÓVEL: ${prop?.title}\nVALOR: ${prop?.price}\nREGRAS: ${prop?.rule} (escore mínimo: ${minEscore})\n\nFAIXAS DE RENDA:\n${faixasStr}\n\nREGRAS:\n1. Fale português brasileiro, seja educado e breve.\n2. Pergunte NOME, PROFISSÃO e RENDA, um de cada vez.\n3. Quando tiver NOME + PROFISSÃO + RENDA, termine com:\n---DADOS_LEAD---\nNOME: nome\nPROFISSAO: profissão\nRENDA: valor\nESCORE: número\n---FIM_DADOS---`;
+    const systemPrompt = `Você é a "Clara", a IA do app (Site) da ImobiFlow. Seu papel é QUALIFICAR leads.\n\nIMÓVEL: ${prop?.title}\nVALOR: ${prop?.price}\nREGRAS: ${prop?.rule} (escore mínimo: ${minEscore})\n\nFAIXAS DE RENDA:\n${faixasStr}\n\nREGRAS:\n1. Fale português brasileiro, seja educado e breve.\n2. No início de cada novo diálogo, apresente-se assim: "Olá! Eu sou a Clara, Em que posso lhe ajudar ?"\n3. Pergunte NOME, PROFISSÃO e RENDA, um de cada vez.\n4. Quando tiver NOME + PROFISSÃO + RENDA, termine com:\n---DADOS_LEAD---\nNOME: nome\nPROFISSAO: profissão\nRENDA: valor\nESCORE: número\n---FIM_DADOS---`;
     const response = await groqChat(systemPrompt, updatedHistory);
     if (!response) { setIsTyping(false); return; }
     setIsTyping(false);
@@ -677,11 +677,11 @@ export default function App() {
             {showChatMenu ? (
               <>
                 <div className="chat-menu-header">
-                  <div className="chat-menu-header-info"><div className="chat-avatar bot" style={{ width: '32px', height: '32px', fontSize: '11px' }}>IA</div><div><strong style={{ fontSize: '13px' }}>Atendente Virtual</strong><span style={{ fontSize: '11px', color: '#00a884', display: 'block' }}>Online</span></div></div>
+                  <div className="chat-menu-header-info"><div className="chat-avatar bot" style={{ width: '32px', height: '32px', fontSize: '11px' }}>C</div><div><strong style={{ fontSize: '13px' }}>Clara · IA do app (Site)</strong><span style={{ fontSize: '11px', color: '#00a884', display: 'block' }}>Online</span></div></div>
                   <button className="chat-menu-close" onClick={() => setChatOpen(false)} aria-label="Fechar">✕</button>
                 </div>
                 <div className="chat-menu-body">
-                  <p style={{ fontSize: '12px', color: '#8696a0', padding: '0 4px 8px', margin: 0, lineHeight: 1.4 }}>Olá! Como podemos ajudar você com o imóvel <strong style={{ color: '#e0e0e0' }}>{property.title}</strong>?</p>
+                  <p style={{ fontSize: '12px', color: '#8696a0', padding: '0 4px 8px', margin: 0, lineHeight: 1.4 }}>Olá! Eu sou a <strong style={{ color: '#e0e0e0' }}>Clara</strong>, Em que posso lhe ajudar ?</p>
                   <button className="chat-option-btn" onClick={() => { if (simStep === 0) handleStartSimChat(); setShowChatMenu(false); }}><span className="chat-option-icon">💬</span><span className="chat-option-label">Falar com Atendente</span><span className="chat-option-arrow">›</span></button>
                   <button className="chat-option-btn" onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Gostaria de agendar uma visita para o imóvel: ${property.title} - ${property.price}`)}`; window.open(wa, '_blank') || (location.href = wa); }}><span className="chat-option-icon">📅</span><span className="chat-option-label">Agendar Visita</span><span className="chat-option-arrow">›</span></button>
                   <button className="chat-option-btn chat-option-btn--sair" onClick={() => setChatOpen(false)}><span className="chat-option-icon">🚪</span><span className="chat-option-label">Sair</span></button>
