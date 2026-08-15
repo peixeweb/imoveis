@@ -77,7 +77,7 @@ export default function SEOHead({ title, description, property, canonicalUrl }) 
       "@type": "Organization",
       "name": "ImobiFlow",
       "url": "https://imobiflow.com.br",
-      "logo": "https://imobiflow.com.br/imoveis/logoimovel.webp",
+      "logo": "https://imobiflow.com.br/logoimovel.webp",
       "sameAs": [],
       "publisher": {
         "@type": "Organization",

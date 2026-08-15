@@ -109,19 +109,13 @@ export default function App() {
   const urlPageParam = urlParams.get('page');
   const urlSlugParam = urlParams.get('slug');
 
-  // URL Limpa por Path Slug: ex. /imoveis/casa-em-parque-piaui-teresina-quadra-63-piaui
+  // URL Limpa por Path Slug: ex. /casa-em-parque-piaui-teresina-quadra-63-piaui
   const pathname = window.location.pathname;
   let pathSlug = '';
-  if (pathname.includes('/imoveis/') && pathname.split('/imoveis/')[1]) {
-    const rawSlug = pathname.split('/imoveis/')[1].replace(/\/$/, '');
-    if (rawSlug && rawSlug !== 'index.html') {
-      pathSlug = decodeURIComponent(rawSlug);
-    }
-  } else if (pathname.includes('/imovel/') && pathname.split('/imovel/')[1]) {
-    const rawSlug = pathname.split('/imovel/')[1].replace(/\/$/, '');
-    if (rawSlug) {
-      pathSlug = decodeURIComponent(rawSlug);
-    }
+  // Remove leading slash and ignore index.html
+  const cleanPath = pathname.replace(/^\//, '').replace(/\/$/, '');
+  if (cleanPath && cleanPath !== 'index.html' && !cleanPath.startsWith('api/') && !cleanPath.startsWith('assets/') && !cleanPath.includes('.')) {
+    pathSlug = decodeURIComponent(cleanPath);
   }
 
   const activeSlug = pathSlug || urlSlugParam;
@@ -630,7 +624,7 @@ export default function App() {
     const isQualified = chatMessages.some(m => m.sender === 'bot' && m.text.toLowerCase().includes('aprovado'));
     const brokerWa = property.brokerWhatsapp || '559999999999';
     return (
-      <div style={{ height: '100vh', backgroundImage: 'url(/imoveis/sao_paulo.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', width: '100%', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ height: '100vh', backgroundImage: 'url(/sao_paulo.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', width: '100%', position: 'relative', overflow: 'hidden' }}>
         <SEOHead property={property} title={property.title} />
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(248, 250, 252, 0.85)', zIndex: 0 }} />
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'auto' }}>
@@ -772,21 +766,21 @@ export default function App() {
     if (authScreen === 'signup-select') return (
       <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', padding: '40px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-          <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+<img src="/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
         </div>
         <p style={{ color: '#94a3b8', fontSize: '15px', marginBottom: '8px', textAlign: 'center' }}>Plataforma de qualificação e distribuição de leads imobiliários</p>
         <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'white', marginBottom: '8px', textAlign: 'center' }}>Como você quer usar a plataforma?</h2>
         <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '36px', textAlign: 'center' }}>Escolha o perfil que melhor descreve o seu caso</p>
         <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '760px', width: '100%' }}>
           <div className="mode-card" onClick={() => setAuthScreen('signup-solo')}>
-            <div className="mode-card-icon"><img src="/imoveis/corretor-independente.webp" alt="Corretor" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
+            <img src="/corretor-independente.webp" alt="Corretor" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
             <h3 className="mode-card-title">Corretor Independente</h3>
             <p className="mode-card-desc">Trabalha sozinho e quer que todos os leads chegem diretamente no seu WhatsApp.</p>
             <ul className="mode-card-list"><li>✅ Landing page vinculada ao seu WhatsApp</li><li>✅ Todos os leads vão direto para você</li><li>✅ Sem divisão com outros corretores</li></ul>
             <button className="btn btn-primary mode-card-btn">Entrar como Corretor ➜</button>
           </div>
           <div className="mode-card" onClick={() => setAuthScreen('signup-team')}>
-            <div className="mode-card-icon"><img src="/imoveis/imobiliaria.webp" alt="Imobiliária" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
+            <div className="mode-card-icon"><img src="/imobiliaria.webp" alt="Imobiliária" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
             <h3 className="mode-card-title">Imobiliária / Equipe</h3>
             <p className="mode-card-desc">Gerencia uma equipe de corretores com distribuição automática e justa (roleta).</p>
             <ul className="mode-card-list"><li>✅ Distribuição automática (Roleta)</li><li>✅ Gestão de equipe completa</li><li>✅ Bloquear/desbloquear corretores</li></ul>
@@ -814,7 +808,7 @@ export default function App() {
     // Signup Solo
     if (authScreen === 'signup-solo') return (
       <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', padding: '40px 20px' }}>
-        <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '24px' }} />
+        <img src="/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '24px' }} />
         <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '32px' }}>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
             <div style={{ fontSize: '40px', marginBottom: '8px' }}>🧑‍💼</div>
@@ -852,10 +846,10 @@ export default function App() {
     // Signup Team
     if (authScreen === 'signup-team') return (
       <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', padding: '40px 20px' }}>
-        <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '24px' }} />
+        <img src="/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '24px' }} />
         <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '32px' }}>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{ width: '60px', height: '60px', margin: '0 auto 8px', overflow: 'hidden' }}><img src="/imoveis/imobiliaria.webp" alt="Imobiliária" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /></div>
+            <div style={{ width: '60px', height: '60px', margin: '0 auto 8px', overflow: 'hidden' }}><img src="/imobiliaria.webp" alt="Imobiliária" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /></div>
             <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'white', margin: '0 0 4px' }}>Cadastro da Imobiliária</h2>
             <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>Configure sua equipe e comece a distribuir leads</p>
           </div>
@@ -1044,7 +1038,7 @@ export default function App() {
                 </div>
               ) : (
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{ width: '96px', height: '96px', borderRadius: '50%', overflow: 'hidden' }}><img src="/imoveis/corretor-independente.webp" alt="Corretor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
+                  <div style={{ width: '96px', height: '96px', borderRadius: '50%', overflow: 'hidden' }}><img src="/corretor-independente.webp" alt="Corretor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
                   <div><h3 style={{ fontSize: '20px', fontWeight: 700, color: 'white' }}>{corretorProfile?.nome}</h3><p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Corretor Independente · {corretorProfile?.creci}</p></div>
                   <div style={{ width: '100%', backgroundColor: '#0d121f', borderRadius: '8px', padding: '12px', border: '1px solid #1f2937' }}>
                     <p style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>WhatsApp para receber leads</p>
@@ -1141,7 +1135,7 @@ export default function App() {
                 <p style={{ color: '#94a3b8', fontSize: '14px' }}>Sua landing page de vendas foi gerada. Compartilhe o link abaixo.</p>
               </div>
               <div style={{ display: 'flex', gap: '20px', padding: '20px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid #1f2937', marginBottom: '24px', flexWrap: 'wrap' }}>
-                <div style={{ width: '140px', height: '140px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0 }}><img src={lastCreatedProperty.images?.[0]?.url || lastCreatedProperty.image || '/imoveis/creativo_casa.png'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /></div>
+                <div style={{ width: '140px', height: '140px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0 }}><img src={lastCreatedProperty.images?.[0]?.url || lastCreatedProperty.image || '/creativo_casa.png'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /></div>
                 <div style={{ flex: 1, minWidth: '200px' }}>
                   <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '6px' }}>{lastCreatedProperty.title}</h2>
                   <p style={{ fontSize: '22px', fontWeight: 700, color: '#06b6d4', marginBottom: '6px' }}>{lastCreatedProperty.price.startsWith('R$') ? lastCreatedProperty.price : `R$ ${lastCreatedProperty.price}`}</p>
@@ -1320,7 +1314,7 @@ export default function App() {
             <div className="page-title" style={{ marginBottom: '24px' }}><h1>Meu Perfil</h1><p>Configure seus dados. Os leads chegam diretamente neste WhatsApp.</p></div>
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '20px 0 8px' }}>
-                <div style={{ width: '108px', height: '108px', borderRadius: '50%', overflow: 'hidden' }}><img src="/imoveis/corretor-independente.webp" alt="Corretor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
+                <div style={{ width: '108px', height: '108px', borderRadius: '50%', overflow: 'hidden' }}><img src="/corretor-independente.webp" alt="Corretor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
                 <span className="badge badge-info">Corretor Independente</span>
               </div>
               <ProfileEditForm profile={corretorProfile} onSave={async (updated) => {
