@@ -754,7 +754,7 @@ export default function App() {
   // ===== LOADING SCREEN =====
   if (appState === 'loading') return (
     <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '20px' }}>
-      <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+      <img src="/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
       <div style={{ width: '40px', height: '40px', border: '3px solid #2563eb', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
       <p style={{ color: '#94a3b8', fontSize: '14px' }}>Verificando sessão...</p>
     </div>
@@ -885,7 +885,7 @@ export default function App() {
     // Login (default auth screen)
     return (
       <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', padding: '40px 20px' }}>
-        <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '80px', height: '80px', objectFit: 'contain', marginBottom: '8px' }} />
+        <img src="/logopj.webp" alt="ImobiFlow" style={{ width: '80px', height: '80px', objectFit: 'contain', marginBottom: '8px' }} />
         <h1 style={{ fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '4px', textAlign: 'center' }}>ImobiFlow</h1>
         <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '40px', textAlign: 'center' }}>Plataforma de leads imobiliários</p>
         <div className="card" style={{ maxWidth: '400px', width: '100%', padding: '32px' }}>
@@ -932,7 +932,7 @@ export default function App() {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="logo-container"><img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} /></div>
+          <div className="logo-container"><img src="/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} /></div>
           <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}><X size={20} /></button>
         </div>
 
