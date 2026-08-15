@@ -27,6 +27,10 @@ import {
 import { supabase } from './lib/supabase';
 import useAuth from './hooks/useAuth';
 import useData, { mapProperty, mapLead, mapBroker } from './hooks/useData';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfUse from './components/TermsOfUse';
+import SEOHead from './components/SEOHead';
+import { getPropertyPublicURL, findPropertyBySlug, getPropertySEOSlug } from './lib/seoUtils';
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
 
@@ -99,11 +103,35 @@ export default function App() {
 
   const [lastCreatedProperty, setLastCreatedProperty] = useState(null);
 
-  // --- Public view ---
-  const urlImovelParam = new URLSearchParams(window.location.search).get('imovel');
-  const isPublicView = !!urlImovelParam;
+  // --- Public view & Legal Pages ---
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlImovelParam = urlParams.get('imovel');
+  const urlPageParam = urlParams.get('page');
+  const urlSlugParam = urlParams.get('slug');
+
+  // URL Limpa por Path Slug: ex. /imoveis/casa-em-parque-piaui-teresina-quadra-63-piaui
+  const pathname = window.location.pathname;
+  let pathSlug = '';
+  if (pathname.includes('/imoveis/') && pathname.split('/imoveis/')[1]) {
+    const rawSlug = pathname.split('/imoveis/')[1].replace(/\/$/, '');
+    if (rawSlug && rawSlug !== 'index.html') {
+      pathSlug = decodeURIComponent(rawSlug);
+    }
+  } else if (pathname.includes('/imovel/') && pathname.split('/imovel/')[1]) {
+    const rawSlug = pathname.split('/imovel/')[1].replace(/\/$/, '');
+    if (rawSlug) {
+      pathSlug = decodeURIComponent(rawSlug);
+    }
+  }
+
+  const activeSlug = pathSlug || urlSlugParam;
+  const isPublicView = !!(urlImovelParam || activeSlug);
   const [publicProperty, setPublicProperty] = useState(null);
   const [publicLoading, setPublicLoading] = useState(isPublicView);
+  const [legalViewPage, setLegalViewPage] = useState(
+    urlPageParam === 'politica-de-privacidade' ? 'privacy' :
+    urlPageParam === 'termos-de-uso' ? 'terms' : null
+  );
 
   // --- Simulator ---
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
@@ -139,10 +167,23 @@ export default function App() {
   useEffect(() => {
     // Public landing page - load property without auth
     if (isPublicView) {
-      supabase.from('imoveis').select('*').eq('id', urlImovelParam).single().then(({ data }) => {
-        if (data) setPublicProperty(mapProperty(data));
+      if (urlImovelParam) {
+        supabase.from('imoveis').select('*').eq('id', urlImovelParam).single().then(({ data }) => {
+          if (data) setPublicProperty(mapProperty(data));
+          setPublicLoading(false);
+        });
+      } else if (activeSlug) {
+        supabase.from('imoveis').select('*').then(({ data }) => {
+          if (data && data.length > 0) {
+            const mappedList = data.map(mapProperty);
+            const found = findPropertyBySlug(mappedList, activeSlug);
+            if (found) setPublicProperty(found);
+          }
+          setPublicLoading(false);
+        });
+      } else {
         setPublicLoading(false);
-      });
+      }
       return;
     }
 
@@ -564,6 +605,14 @@ export default function App() {
     setSimStep(6);
   };
 
+  // ===== LEGAL PAGES =====
+  if (legalViewPage === 'privacy') {
+    return <PrivacyPolicy onBack={() => setLegalViewPage(null)} />;
+  }
+  if (legalViewPage === 'terms') {
+    return <TermsOfUse onBack={() => setLegalViewPage(null)} />;
+  }
+
   // ===== PUBLIC LANDING PAGE =====
   if (isPublicView) {
     if (publicLoading) return (
@@ -582,6 +631,7 @@ export default function App() {
     const brokerWa = property.brokerWhatsapp || '559999999999';
     return (
       <div style={{ height: '100vh', backgroundImage: 'url(/imoveis/sao_paulo.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', width: '100%', position: 'relative', overflow: 'hidden' }}>
+        <SEOHead property={property} title={property.title} />
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(248, 250, 252, 0.85)', zIndex: 0 }} />
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'auto' }}>
           <div style={{ background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(8px)', color: 'white', padding: '32px 16px 24px', textAlign: 'center' }}>
@@ -622,7 +672,28 @@ export default function App() {
             {property.brokerName && <div style={{ marginBottom: '8px' }}><div style={{ fontSize: '13px', color: '#64748b', marginBottom: '2px' }}>Seu corretor responsável</div><div style={{ fontWeight: 600, color: '#0f172a', fontSize: '15px' }}>{property.brokerName}</div><div style={{ fontSize: '12px', color: '#64748b' }}>{property.brokerCreci}</div></div>}
             <p style={{ fontSize: '11px', color: '#94a3b8' }}>💬 Toque no botão de chat no canto inferior direito</p>
           </div>
-          <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: '#94a3b8', background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(8px)' }}>ImobiFlow — Plataforma de Leads Imobiliários</div>
+          <footer style={{ padding: '24px 16px', textAlign: 'center', fontSize: '12px', color: '#64748b', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', fontSize: '11px', color: '#94a3b8', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <span>🛡️ CRECI Credenciado</span>
+              <span style={{ color: '#475569' }}>•</span>
+              <span>🔒 Conexão Segura SSL & LGPD Compliant</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+                Política de Privacidade
+              </button>
+              <span style={{ color: '#475569' }}>•</span>
+              <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+                Termos de Uso
+              </button>
+            </div>
+            <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8', fontSize: '11px' }}>
+              © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+            </p>
+            <p style={{ margin: 0, color: '#64748b', fontSize: '10px' }}>
+              ImobiFlow — Plataforma de Leads Imobiliários
+            </p>
+          </footer>
         </div>
 
         {/* FAB */}
@@ -723,6 +794,20 @@ export default function App() {
           </div>
         </div>
         <p style={{ color: '#94a3b8', fontSize: '14px', marginTop: '32px' }}>Já tem conta? <button onClick={() => setAuthScreen('login')} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>Fazer login</button></p>
+        <footer style={{ marginTop: '40px', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '8px' }}>
+            <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Política de Privacidade
+            </button>
+            <span style={{ color: '#334155' }}>•</span>
+            <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Termos de Uso
+            </button>
+          </div>
+          <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8' }}>
+            © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+          </p>
+        </footer>
       </div>
     );
 
@@ -747,6 +832,20 @@ export default function App() {
           </form>
           <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} onClick={() => { setAuthScreen('signup-select'); setAuthError(''); }}>Voltar</button>
         </div>
+        <footer style={{ marginTop: '40px', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '8px' }}>
+            <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Política de Privacidade
+            </button>
+            <span style={{ color: '#334155' }}>•</span>
+            <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Termos de Uso
+            </button>
+          </div>
+          <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8' }}>
+            © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+          </p>
+        </footer>
       </div>
     );
 
@@ -772,6 +871,20 @@ export default function App() {
           </form>
           <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} onClick={() => { setAuthScreen('signup-select'); setAuthError(''); }}>Voltar</button>
         </div>
+        <footer style={{ marginTop: '40px', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '8px' }}>
+            <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Política de Privacidade
+            </button>
+            <span style={{ color: '#334155' }}>•</span>
+            <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Termos de Uso
+            </button>
+          </div>
+          <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8' }}>
+            © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+          </p>
+        </footer>
       </div>
     );
 
@@ -794,6 +907,20 @@ export default function App() {
             <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => { setAuthScreen('signup-select'); setAuthError(''); }}>Criar Conta Gratuita</button>
           </div>
         </div>
+        <footer style={{ marginTop: '40px', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '8px' }}>
+            <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Política de Privacidade
+            </button>
+            <span style={{ color: '#334155' }}>•</span>
+            <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Termos de Uso
+            </button>
+          </div>
+          <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8' }}>
+            © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+          </p>
+        </footer>
       </div>
     );
   }
@@ -803,6 +930,7 @@ export default function App() {
 
   return (
     <div className="app-container">
+      <SEOHead title="ImobiFlow | Gestão Imobiliária & CRM" />
       {/* Hamburger */}
       <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}><Menu size={24} /></button>
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
@@ -954,8 +1082,8 @@ export default function App() {
                     <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>{property.leadsCount} Leads captados</span>
                       <div style={{ display: 'flex', gap: '6px' }}>
-                        <button className="btn btn-secondary" style={{ padding: '6px 10px', fontSize: '11px' }} onClick={() => { const link = `${window.location.origin}${window.location.pathname}?imovel=${property.id}`; navigator.clipboard.writeText(link); alert('Link da landing page copiado!'); }}>🔗 Copiar Link</button>
-                        <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => window.open(`${window.location.origin}${window.location.pathname}?imovel=${property.id}`, '_blank')}>Ver Landing</button>
+                        <button className="btn btn-secondary" style={{ padding: '6px 10px', fontSize: '11px' }} onClick={() => { const link = getPropertyPublicURL(property); navigator.clipboard.writeText(link); alert('Link de SEO da landing page copiado!\n\n' + link); }}>🔗 Copiar Link SEO</button>
+                        <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => window.open(getPropertyPublicURL(property), '_blank')}>Ver Landing</button>
                         <button className="btn btn-secondary" style={{ padding: '6px 10px', fontSize: '11px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }} onClick={() => handleDeleteProperty(property.id)}>Excluir</button>
                       </div>
                     </div>
@@ -1022,14 +1150,14 @@ export default function App() {
                 </div>
               </div>
               <div style={{ padding: '20px', borderRadius: '10px', backgroundColor: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', marginBottom: '24px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>🔗 Link da Sua Landing Page</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>🔗 Link de SEO da sua Landing Page</div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#0d121f', borderRadius: '8px', padding: '8px 12px', border: '1px solid #1f2937' }}>
-                  <code style={{ flex: 1, fontSize: '13px', color: '#06b6d4', fontFamily: 'monospace', wordBreak: 'break-all' }}>{`${window.location.origin}${window.location.pathname}?imovel=${lastCreatedProperty.id}`}</code>
-                  <button className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '12px', whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => { navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?imovel=${lastCreatedProperty.id}`); alert('Link copiado!'); }}>📋 Copiar</button>
+                  <code style={{ flex: 1, fontSize: '13px', color: '#06b6d4', fontFamily: 'monospace', wordBreak: 'break-all' }}>{getPropertyPublicURL(lastCreatedProperty)}</code>
+                  <button className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '12px', whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => { navigator.clipboard.writeText(getPropertyPublicURL(lastCreatedProperty)); alert('Link de SEO copiado!'); }}>📋 Copiar Link SEO</button>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => window.open(`${window.location.origin}${window.location.pathname}?imovel=${lastCreatedProperty.id}`, '_blank')}>👁️ Visualizar Landing</button>
+                <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => window.open(getPropertyPublicURL(lastCreatedProperty), '_blank')}>👁️ Visualizar Landing Page</button>
                 <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => { setLastCreatedProperty(null); setActiveTab('imoveis'); }}>📋 Ver Meus Imóveis</button>
               </div>
             </div>
@@ -1350,6 +1478,20 @@ function EquipeTab({ brokers, setBrokers, equipeId, userId, onNavigate }) {
           {brokers.length === 0 && <div style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>Nenhum corretor cadastrado. Adicione corretores acima para começar a distribuir leads.</div>}
         </div>
       </div>
+      <footer style={{ marginTop: '40px', padding: '24px', textAlign: 'center', fontSize: '12px', color: '#64748b', borderTop: '1px solid #1f2937' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '8px' }}>
+          <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+            Política de Privacidade
+          </button>
+          <span style={{ color: '#334155' }}>•</span>
+          <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+            Termos de Uso
+          </button>
+        </div>
+        <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8' }}>
+          © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+        </p>
+      </footer>
     </div>
   );
 }
