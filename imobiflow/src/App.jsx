@@ -27,9 +27,12 @@ import {
 import { supabase } from './lib/supabase';
 import useAuth from './hooks/useAuth';
 import useData, { mapProperty, mapLead, mapBroker } from './hooks/useData';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfUse from './components/TermsOfUse';
+import SEOHead from './components/SEOHead';
+import { getPropertyPublicURL, findPropertyBySlug, getPropertySEOSlug } from './lib/seoUtils';
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
-const ASSETS = import.meta.env.BASE_URL;
 
 const INCOME_FAIXAS = [
   { value: 'Até R$ 3.000', escore: 25, label: 'Até R$ 3.000' },
@@ -93,8 +96,6 @@ export default function App() {
   const [signupEquipeNome, setSignupEquipeNome] = useState('');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [signupCompleteMode, setSignupCompleteMode] = useState('solo');
-  const [signupCompleteEquipeNome, setSignupCompleteEquipeNome] = useState('');
 
   // --- UI ---
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -102,11 +103,35 @@ export default function App() {
 
   const [lastCreatedProperty, setLastCreatedProperty] = useState(null);
 
-  // --- Public view ---
-  const urlImovelParam = new URLSearchParams(window.location.search).get('imovel');
-  const isPublicView = !!urlImovelParam;
+  // --- Public view & Legal Pages ---
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlImovelParam = urlParams.get('imovel');
+  const urlPageParam = urlParams.get('page');
+  const urlSlugParam = urlParams.get('slug');
+
+  // URL Limpa por Path Slug: ex. /imoveis/casa-em-parque-piaui-teresina-quadra-63-piaui
+  const pathname = window.location.pathname;
+  let pathSlug = '';
+  if (pathname.includes('/imoveis/') && pathname.split('/imoveis/')[1]) {
+    const rawSlug = pathname.split('/imoveis/')[1].replace(/\/$/, '');
+    if (rawSlug && rawSlug !== 'index.html') {
+      pathSlug = decodeURIComponent(rawSlug);
+    }
+  } else if (pathname.includes('/imovel/') && pathname.split('/imovel/')[1]) {
+    const rawSlug = pathname.split('/imovel/')[1].replace(/\/$/, '');
+    if (rawSlug) {
+      pathSlug = decodeURIComponent(rawSlug);
+    }
+  }
+
+  const activeSlug = pathSlug || urlSlugParam;
+  const isPublicView = !!(urlImovelParam || activeSlug);
   const [publicProperty, setPublicProperty] = useState(null);
   const [publicLoading, setPublicLoading] = useState(isPublicView);
+  const [legalViewPage, setLegalViewPage] = useState(
+    urlPageParam === 'politica-de-privacidade' ? 'privacy' :
+    urlPageParam === 'termos-de-uso' ? 'terms' : null
+  );
 
   // --- Simulator ---
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
@@ -142,10 +167,23 @@ export default function App() {
   useEffect(() => {
     // Public landing page - load property without auth
     if (isPublicView) {
-      supabase.from('imoveis').select('*').eq('id', urlImovelParam).single().then(({ data }) => {
-        if (data) setPublicProperty(mapProperty(data));
+      if (urlImovelParam) {
+        supabase.from('imoveis').select('*').eq('id', urlImovelParam).single().then(({ data }) => {
+          if (data) setPublicProperty(mapProperty(data));
+          setPublicLoading(false);
+        });
+      } else if (activeSlug) {
+        supabase.from('imoveis').select('*').then(({ data }) => {
+          if (data && data.length > 0) {
+            const mappedList = data.map(mapProperty);
+            const found = findPropertyBySlug(mappedList, activeSlug);
+            if (found) setPublicProperty(found);
+          }
+          setPublicLoading(false);
+        });
+      } else {
         setPublicLoading(false);
-      });
+      }
       return;
     }
 
@@ -156,7 +194,7 @@ export default function App() {
         const found = await loadCorretorProfile(session.user.id);
         if (!found) {
           setSignupEmail(session.user.email || '');
-          setAuthScreen('signup-complete');
+          setAuthScreen('signup-select');
         }
       } else {
         setAppState('auth');
@@ -195,7 +233,7 @@ export default function App() {
       return true;
     } else {
       setAppState('auth');
-      setAuthScreen('signup-complete');
+      setAuthScreen('signup-select');
       return false;
     }
   };
@@ -214,10 +252,11 @@ export default function App() {
       setCurrentUser(data.user);
       const found = await loadCorretorProfile(data.user.id);
       if (!found) {
+        // Pré-preenche o email do cadastro com o email do login
         setSignupEmail(loginEmail);
         setSignupPassword(loginPassword);
-        setAuthError('Perfil de corretor não encontrado. Complete seu cadastro para entrar.');
-        setAuthScreen('signup-complete');
+        setAuthError('Perfil não encontrado. Escolha como deseja se cadastrar.');
+        setAuthScreen('signup-select');
       }
     } catch (err) {
       setAuthError('Erro inesperado: ' + err.message);
@@ -230,22 +269,13 @@ export default function App() {
     setAuthError('');
     try {
       const { data: authData, error: authErr } = await supabase.auth.signUp({ email: signupEmail, password: signupPassword });
+      if (authErr && !(authErr.code === 'user_already_exists' || authErr.status === 422 || /already registered/i.test(authErr.message || ''))) { setAuthError(authErr.message); setAuthLoading(false); return false; }
       let userId;
       let loginData = null;
-      if (authErr) {
-        if (authErr.message.includes('already registered') || authErr.message.includes('ja existe')) {
-          const { data: ld, error: loginErr } = await supabase.auth.signInWithPassword({ email: signupEmail, password: signupPassword });
-          if (loginErr || !ld?.user) { setAuthError('Este e-mail já possui cadastro, mas a senha está incorreta. Tente fazer login.'); setAuthLoading(false); return false; }
-          loginData = ld;
-          userId = ld.user.id;
-        } else {
-          setAuthError(authErr.message);
-          setAuthLoading(false);
-          return false;
-        }
-      } else if (authData?.user) {
+      if (authData?.user) {
         userId = authData.user.id;
       } else {
+        // Email já existe - tenta login para pegar o user_id
         const { data: ld, error: loginErr } = await supabase.auth.signInWithPassword({ email: signupEmail, password: signupPassword });
         if (loginErr || !ld?.user) { setAuthError('Este e-mail já está cadastrado com outra senha. Faça login.'); setAuthLoading(false); return false; }
         loginData = ld;
@@ -299,40 +329,6 @@ export default function App() {
     e.preventDefault();
     if (!signupEquipeNome || !signupNome || !signupCreci || !signupEmail || !signupPassword) { setAuthError('Preencha todos os campos obrigatórios.'); return; }
     signupOrCreateProfile('team', { nome: signupEquipeNome });
-  };
-
-  const handleCompleteProfile = async (e) => {
-    e.preventDefault();
-    if (!currentUser) { setAuthError('Sessão expirada. Faça login novamente.'); setAppState('auth'); setAuthScreen('login'); return; }
-    if (!signupNome || !signupCreci) { setAuthError('Preencha seu nome completo e CRECI.'); return; }
-    if (signupCompleteMode === 'team' && !signupCompleteEquipeNome) { setAuthError('Informe o nome da imobiliária / equipe.'); return; }
-    setAuthLoading(true);
-    setAuthError('');
-    try {
-      let equipeId = null;
-      let equipeNome = null;
-      if (signupCompleteMode === 'team') {
-        const { data: eqData, error: eqErr } = await supabase.from('equipes').insert({ nome: signupCompleteEquipeNome, admin_user_id: currentUser.id }).select().single();
-        if (eqErr) { setAuthError('Erro ao criar equipe: ' + eqErr.message); setAuthLoading(false); return; }
-        equipeId = eqData.id;
-        equipeNome = eqData.nome;
-      }
-      const { data: corrData, error: corrErr } = await supabase.from('corretores').insert({
-        user_id: currentUser.id,
-        nome: signupNome, whatsapp: signupWhatsapp, creci: signupCreci,
-        modo: signupCompleteMode, equipe_id: equipeId, equipe_nome: equipeNome,
-        status: 'ativo', is_admin: true,
-      }).select().single();
-      if (corrErr) { setAuthError('Erro ao criar perfil: ' + corrErr.message); setAuthLoading(false); return; }
-      setCorretorProfile(corrData);
-      await loadAllData(corrData);
-      setAppState('app');
-      setActiveTab(signupCompleteMode === 'team' ? 'equipe' : 'dashboard');
-      setAuthLoading(false);
-    } catch (err) {
-      setAuthError('Erro inesperado: ' + err.message);
-      setAuthLoading(false);
-    }
   };
 
   const handleLogout = async () => {
@@ -448,7 +444,7 @@ export default function App() {
     if (GROQ_API_KEY) {
       const minEscore = getMinEscore(prop.rule);
       const faixasStr = INCOME_FAIXAS.map(f => `- ${f.value} → Escore ${f.escore}`).join('\n');
-      const systemPrompt = `Você é a "Clara", a IA do app (Site) da ImobiFlow, assistente virtual de uma imobiliária.\n\nIMÓVEL: ${prop.title}\nVALOR: ${prop.price}\nREGRAS: ${prop.rule}\n\nINSTRUÇÕES:\n- Fale português brasileiro, seja educado e breve.\n- No início de cada novo diálogo, apresente-se assim: "Olá! Eu sou a Clara, Em que posso lhe ajudar ?"\n- Em seguida pergunte apenas o NOME do lead. NÃO peça renda ainda.`;
+      const systemPrompt = `Você é a "IA" da ImobiFlow, assistente virtual de uma imobiliária.\n\nIMÓVEL: ${prop.title}\nVALOR: ${prop.price}\nREGRAS: ${prop.rule}\n\nINSTRUÇÕES:\n- Fale português brasileiro, seja educado e breve.\n- Apresente-se e pergunte apenas o NOME do lead. NÃO peça renda ainda.`;
       const greeting = await groqChat(systemPrompt, [{ role: 'user', content: 'Inicie o atendimento.' }]);
       if (greeting) {
         setChatMessages([{ sender: 'bot', text: greeting, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
@@ -575,7 +571,7 @@ export default function App() {
     setGroqHistory(updatedHistory);
     const minEscore = getMinEscore(prop?.rule);
     const faixasStr = INCOME_FAIXAS.map(f => `- ${f.label}: "${f.value}" → Escore ${f.escore}`).join('\n');
-    const systemPrompt = `Você é a "Clara", a IA do app (Site) da ImobiFlow. Seu papel é QUALIFICAR leads.\n\nIMÓVEL: ${prop?.title}\nVALOR: ${prop?.price}\nREGRAS: ${prop?.rule} (escore mínimo: ${minEscore})\n\nFAIXAS DE RENDA:\n${faixasStr}\n\nREGRAS:\n1. Fale português brasileiro, seja educado e breve.\n2. No início de cada novo diálogo, apresente-se assim: "Olá! Eu sou a Clara, Em que posso lhe ajudar ?"\n3. Pergunte NOME, PROFISSÃO e RENDA, um de cada vez.\n4. Quando tiver NOME + PROFISSÃO + RENDA, termine com:\n---DADOS_LEAD---\nNOME: nome\nPROFISSAO: profissão\nRENDA: valor\nESCORE: número\n---FIM_DADOS---`;
+    const systemPrompt = `Você é a "IA" da ImobiFlow. Seu papel é QUALIFICAR leads.\n\nIMÓVEL: ${prop?.title}\nVALOR: ${prop?.price}\nREGRAS: ${prop?.rule} (escore mínimo: ${minEscore})\n\nFAIXAS DE RENDA:\n${faixasStr}\n\nREGRAS:\n1. Fale português brasileiro, seja educado e breve.\n2. Pergunte NOME, PROFISSÃO e RENDA, um de cada vez.\n3. Quando tiver NOME + PROFISSÃO + RENDA, termine com:\n---DADOS_LEAD---\nNOME: nome\nPROFISSAO: profissão\nRENDA: valor\nESCORE: número\n---FIM_DADOS---`;
     const response = await groqChat(systemPrompt, updatedHistory);
     if (!response) { setIsTyping(false); return; }
     setIsTyping(false);
@@ -609,6 +605,14 @@ export default function App() {
     setSimStep(6);
   };
 
+  // ===== LEGAL PAGES =====
+  if (legalViewPage === 'privacy') {
+    return <PrivacyPolicy onBack={() => setLegalViewPage(null)} />;
+  }
+  if (legalViewPage === 'terms') {
+    return <TermsOfUse onBack={() => setLegalViewPage(null)} />;
+  }
+
   // ===== PUBLIC LANDING PAGE =====
   if (isPublicView) {
     if (publicLoading) return (
@@ -626,7 +630,8 @@ export default function App() {
     const isQualified = chatMessages.some(m => m.sender === 'bot' && m.text.toLowerCase().includes('aprovado'));
     const brokerWa = property.brokerWhatsapp || '559999999999';
     return (
-      <div style={{ height: '100vh', backgroundImage: `url(${ASSETS}sao_paulo.webp)`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', width: '100%', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ height: '100vh', backgroundImage: 'url(/imoveis/sao_paulo.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', width: '100%', position: 'relative', overflow: 'hidden' }}>
+        <SEOHead property={property} title={property.title} />
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(248, 250, 252, 0.85)', zIndex: 0 }} />
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'auto' }}>
           <div style={{ background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(8px)', color: 'white', padding: '32px 16px 24px', textAlign: 'center' }}>
@@ -667,7 +672,28 @@ export default function App() {
             {property.brokerName && <div style={{ marginBottom: '8px' }}><div style={{ fontSize: '13px', color: '#64748b', marginBottom: '2px' }}>Seu corretor responsável</div><div style={{ fontWeight: 600, color: '#0f172a', fontSize: '15px' }}>{property.brokerName}</div><div style={{ fontSize: '12px', color: '#64748b' }}>{property.brokerCreci}</div></div>}
             <p style={{ fontSize: '11px', color: '#94a3b8' }}>💬 Toque no botão de chat no canto inferior direito</p>
           </div>
-          <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: '#94a3b8', background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(8px)' }}>ImobiFlow — Plataforma de Leads Imobiliários</div>
+          <footer style={{ padding: '24px 16px', textAlign: 'center', fontSize: '12px', color: '#64748b', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', fontSize: '11px', color: '#94a3b8', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <span>🛡️ CRECI Credenciado</span>
+              <span style={{ color: '#475569' }}>•</span>
+              <span>🔒 Conexão Segura SSL & LGPD Compliant</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+                Política de Privacidade
+              </button>
+              <span style={{ color: '#475569' }}>•</span>
+              <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+                Termos de Uso
+              </button>
+            </div>
+            <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8', fontSize: '11px' }}>
+              © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+            </p>
+            <p style={{ margin: 0, color: '#64748b', fontSize: '10px' }}>
+              ImobiFlow — Plataforma de Leads Imobiliários
+            </p>
+          </footer>
         </div>
 
         {/* FAB */}
@@ -678,11 +704,11 @@ export default function App() {
             {showChatMenu ? (
               <>
                 <div className="chat-menu-header">
-                  <div className="chat-menu-header-info"><div className="chat-avatar bot" style={{ width: '32px', height: '32px', fontSize: '11px' }}>C</div><div><strong style={{ fontSize: '13px' }}>Clara · IA do app (Site)</strong><span style={{ fontSize: '11px', color: '#00a884', display: 'block' }}>Online</span></div></div>
+                  <div className="chat-menu-header-info"><div className="chat-avatar bot" style={{ width: '32px', height: '32px', fontSize: '11px' }}>IA</div><div><strong style={{ fontSize: '13px' }}>Atendente Virtual</strong><span style={{ fontSize: '11px', color: '#00a884', display: 'block' }}>Online</span></div></div>
                   <button className="chat-menu-close" onClick={() => setChatOpen(false)} aria-label="Fechar">✕</button>
                 </div>
                 <div className="chat-menu-body">
-                  <p style={{ fontSize: '12px', color: '#8696a0', padding: '0 4px 8px', margin: 0, lineHeight: 1.4 }}>Olá! Eu sou a <strong style={{ color: '#e0e0e0' }}>Clara</strong>, Em que posso lhe ajudar ?</p>
+                  <p style={{ fontSize: '12px', color: '#8696a0', padding: '0 4px 8px', margin: 0, lineHeight: 1.4 }}>Olá! Como podemos ajudar você com o imóvel <strong style={{ color: '#e0e0e0' }}>{property.title}</strong>?</p>
                   <button className="chat-option-btn" onClick={() => { if (simStep === 0) handleStartSimChat(); setShowChatMenu(false); }}><span className="chat-option-icon">💬</span><span className="chat-option-label">Falar com Atendente</span><span className="chat-option-arrow">›</span></button>
                   <button className="chat-option-btn" onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Gostaria de agendar uma visita para o imóvel: ${property.title} - ${property.price}`)}`; window.open(wa, '_blank') || (location.href = wa); }}><span className="chat-option-icon">📅</span><span className="chat-option-label">Agendar Visita</span><span className="chat-option-arrow">›</span></button>
                   <button className="chat-option-btn chat-option-btn--sair" onClick={() => setChatOpen(false)}><span className="chat-option-icon">🚪</span><span className="chat-option-label">Sair</span></button>
@@ -734,7 +760,7 @@ export default function App() {
   // ===== LOADING SCREEN =====
   if (appState === 'loading') return (
     <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '20px' }}>
-      <img src={`${ASSETS}logopj.webp`} alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+      <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
       <div style={{ width: '40px', height: '40px', border: '3px solid #2563eb', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
       <p style={{ color: '#94a3b8', fontSize: '14px' }}>Verificando sessão...</p>
     </div>
@@ -746,21 +772,21 @@ export default function App() {
     if (authScreen === 'signup-select') return (
       <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', padding: '40px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-          <img src={`${ASSETS}logopj.webp`} alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+          <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
         </div>
         <p style={{ color: '#94a3b8', fontSize: '15px', marginBottom: '8px', textAlign: 'center' }}>Plataforma de qualificação e distribuição de leads imobiliários</p>
         <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'white', marginBottom: '8px', textAlign: 'center' }}>Como você quer usar a plataforma?</h2>
         <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '36px', textAlign: 'center' }}>Escolha o perfil que melhor descreve o seu caso</p>
         <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '760px', width: '100%' }}>
           <div className="mode-card" onClick={() => setAuthScreen('signup-solo')}>
-            <div className="mode-card-icon"><img src={`${ASSETS}corretor-independente.webp`} alt="Corretor" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
+            <div className="mode-card-icon"><img src="/imoveis/corretor-independente.webp" alt="Corretor" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
             <h3 className="mode-card-title">Corretor Independente</h3>
             <p className="mode-card-desc">Trabalha sozinho e quer que todos os leads chegem diretamente no seu WhatsApp.</p>
             <ul className="mode-card-list"><li>✅ Landing page vinculada ao seu WhatsApp</li><li>✅ Todos os leads vão direto para você</li><li>✅ Sem divisão com outros corretores</li></ul>
             <button className="btn btn-primary mode-card-btn">Entrar como Corretor ➜</button>
           </div>
           <div className="mode-card" onClick={() => setAuthScreen('signup-team')}>
-            <div className="mode-card-icon"><img src={`${ASSETS}imobiliaria.webp`} alt="Imobiliária" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
+            <div className="mode-card-icon"><img src="/imoveis/imobiliaria.webp" alt="Imobiliária" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
             <h3 className="mode-card-title">Imobiliária / Equipe</h3>
             <p className="mode-card-desc">Gerencia uma equipe de corretores com distribuição automática e justa (roleta).</p>
             <ul className="mode-card-list"><li>✅ Distribuição automática (Roleta)</li><li>✅ Gestão de equipe completa</li><li>✅ Bloquear/desbloquear corretores</li></ul>
@@ -768,42 +794,27 @@ export default function App() {
           </div>
         </div>
         <p style={{ color: '#94a3b8', fontSize: '14px', marginTop: '32px' }}>Já tem conta? <button onClick={() => setAuthScreen('login')} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>Fazer login</button></p>
-      </div>
-    );
-
-    // Complete profile (logged in but no corretor profile)
-    if (authScreen === 'signup-complete') return (
-      <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', padding: '40px 20px' }}>
-        <img src={`${ASSETS}logopj.webp`} alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '24px' }} />
-        <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '32px' }}>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{ fontSize: '40px', marginBottom: '8px' }}>📝</div>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'white', margin: '0 0 4px' }}>Complete seu cadastro</h2>
-            <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>Sua conta <strong style={{ color: 'white' }}>{currentUser?.email}</strong> está criada, mas falta o perfil de corretor. Preencha abaixo para entrar no painel.</p>
+        <footer style={{ marginTop: '40px', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '8px' }}>
+            <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Política de Privacidade
+            </button>
+            <span style={{ color: '#334155' }}>•</span>
+            <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Termos de Uso
+            </button>
           </div>
-          {authError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px 14px', color: '#ef4444', fontSize: '13px', marginBottom: '16px' }}>{authError}</div>}
-          <form onSubmit={handleCompleteProfile}>
-            <div className="form-group"><label>Como você vai usar a plataforma? *</label>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                <button type="button" onClick={() => { setSignupCompleteMode('solo'); setAuthError(''); }} style={{ flex: 1, padding: '12px 8px', borderRadius: '10px', border: `1px solid ${signupCompleteMode === 'solo' ? '#2563eb' : '#1f2937'}`, background: signupCompleteMode === 'solo' ? 'rgba(37,99,235,0.12)' : '#0d121f', color: signupCompleteMode === 'solo' ? '#60a5fa' : '#94a3b8', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>🧑‍💼 Corretor Independente</button>
-                <button type="button" onClick={() => { setSignupCompleteMode('team'); setAuthError(''); }} style={{ flex: 1, padding: '12px 8px', borderRadius: '10px', border: `1px solid ${signupCompleteMode === 'team' ? '#10b981' : '#1f2937'}`, background: signupCompleteMode === 'team' ? 'rgba(16,185,129,0.12)' : '#0d121f', color: signupCompleteMode === 'team' ? '#34d399' : '#94a3b8', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>🏢 Imobiliária / Equipe</button>
-              </div>
-            </div>
-            {signupCompleteMode === 'team' && <div className="form-group"><label>Nome da Imobiliária / Equipe *</label><input type="text" className="form-control" placeholder="Ex: Imobiliária Exemplo" value={signupCompleteEquipeNome} onChange={e => setSignupCompleteEquipeNome(e.target.value)} required /></div>}
-            <div className="form-group"><label>Nome Completo *</label><input type="text" className="form-control" placeholder="Ex: Roberto Silva" value={signupNome} onChange={e => setSignupNome(e.target.value)} required /></div>
-            <div className="form-group"><label>CRECI *</label><input type="text" className="form-control" placeholder="Ex: CRECI-DF 12345" value={signupCreci} onChange={e => setSignupCreci(e.target.value)} required /></div>
-            <div className="form-group"><label>WhatsApp (com DDD)</label><input type="text" className="form-control" placeholder="Ex: 61999990000" value={signupWhatsapp} onChange={e => setSignupWhatsapp(e.target.value)} /></div>
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} disabled={authLoading}>{authLoading ? 'Salvando...' : 'Concluir Cadastro e Entrar'}</button>
-          </form>
-          <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} onClick={handleLogout}>Sair da conta</button>
-        </div>
+          <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8' }}>
+            © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+          </p>
+        </footer>
       </div>
     );
 
     // Signup Solo
     if (authScreen === 'signup-solo') return (
       <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', padding: '40px 20px' }}>
-        <img src={`${ASSETS}logopj.webp`} alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '24px' }} />
+        <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '24px' }} />
         <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '32px' }}>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
             <div style={{ fontSize: '40px', marginBottom: '8px' }}>🧑‍💼</div>
@@ -821,16 +832,30 @@ export default function App() {
           </form>
           <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} onClick={() => { setAuthScreen('signup-select'); setAuthError(''); }}>Voltar</button>
         </div>
+        <footer style={{ marginTop: '40px', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '8px' }}>
+            <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Política de Privacidade
+            </button>
+            <span style={{ color: '#334155' }}>•</span>
+            <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Termos de Uso
+            </button>
+          </div>
+          <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8' }}>
+            © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+          </p>
+        </footer>
       </div>
     );
 
     // Signup Team
     if (authScreen === 'signup-team') return (
       <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', padding: '40px 20px' }}>
-        <img src={`${ASSETS}logopj.webp`} alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '24px' }} />
+        <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain', marginBottom: '24px' }} />
         <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '32px' }}>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{ width: '60px', height: '60px', margin: '0 auto 8px', overflow: 'hidden' }}><img src={`${ASSETS}imobiliaria.webp`} alt="Imobiliária" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /></div>
+            <div style={{ width: '60px', height: '60px', margin: '0 auto 8px', overflow: 'hidden' }}><img src="/imoveis/imobiliaria.webp" alt="Imobiliária" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /></div>
             <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'white', margin: '0 0 4px' }}>Cadastro da Imobiliária</h2>
             <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>Configure sua equipe e comece a distribuir leads</p>
           </div>
@@ -846,13 +871,27 @@ export default function App() {
           </form>
           <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }} onClick={() => { setAuthScreen('signup-select'); setAuthError(''); }}>Voltar</button>
         </div>
+        <footer style={{ marginTop: '40px', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '8px' }}>
+            <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Política de Privacidade
+            </button>
+            <span style={{ color: '#334155' }}>•</span>
+            <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Termos de Uso
+            </button>
+          </div>
+          <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8' }}>
+            © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+          </p>
+        </footer>
       </div>
     );
 
     // Login (default auth screen)
     return (
       <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(ellipse at 60% 0%, rgba(37,99,235,0.12) 0%, transparent 70%), #090d16', padding: '40px 20px' }}>
-        <img src={`${ASSETS}logopj.webp`} alt="ImobiFlow" style={{ width: '80px', height: '80px', objectFit: 'contain', marginBottom: '8px' }} />
+        <img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '80px', height: '80px', objectFit: 'contain', marginBottom: '8px' }} />
         <h1 style={{ fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '4px', textAlign: 'center' }}>ImobiFlow</h1>
         <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '40px', textAlign: 'center' }}>Plataforma de leads imobiliários</p>
         <div className="card" style={{ maxWidth: '400px', width: '100%', padding: '32px' }}>
@@ -868,6 +907,20 @@ export default function App() {
             <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => { setAuthScreen('signup-select'); setAuthError(''); }}>Criar Conta Gratuita</button>
           </div>
         </div>
+        <footer style={{ marginTop: '40px', textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '8px' }}>
+            <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Política de Privacidade
+            </button>
+            <span style={{ color: '#334155' }}>•</span>
+            <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+              Termos de Uso
+            </button>
+          </div>
+          <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8' }}>
+            © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+          </p>
+        </footer>
       </div>
     );
   }
@@ -877,6 +930,7 @@ export default function App() {
 
   return (
     <div className="app-container">
+      <SEOHead title="ImobiFlow | Gestão Imobiliária & CRM" />
       {/* Hamburger */}
       <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}><Menu size={24} /></button>
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
@@ -884,7 +938,7 @@ export default function App() {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="logo-container"><img src={`${ASSETS}logopj.webp`} alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} /></div>
+          <div className="logo-container"><img src="/imoveis/logopj.webp" alt="ImobiFlow" style={{ width: '72px', height: '72px', objectFit: 'contain' }} /></div>
           <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}><X size={20} /></button>
         </div>
 
@@ -990,7 +1044,7 @@ export default function App() {
                 </div>
               ) : (
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{ width: '96px', height: '96px', borderRadius: '50%', overflow: 'hidden' }}><img src={`${ASSETS}corretor-independente.webp`} alt="Corretor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
+                  <div style={{ width: '96px', height: '96px', borderRadius: '50%', overflow: 'hidden' }}><img src="/imoveis/corretor-independente.webp" alt="Corretor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
                   <div><h3 style={{ fontSize: '20px', fontWeight: 700, color: 'white' }}>{corretorProfile?.nome}</h3><p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Corretor Independente · {corretorProfile?.creci}</p></div>
                   <div style={{ width: '100%', backgroundColor: '#0d121f', borderRadius: '8px', padding: '12px', border: '1px solid #1f2937' }}>
                     <p style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>WhatsApp para receber leads</p>
@@ -1028,8 +1082,8 @@ export default function App() {
                     <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>{property.leadsCount} Leads captados</span>
                       <div style={{ display: 'flex', gap: '6px' }}>
-                        <button className="btn btn-secondary" style={{ padding: '6px 10px', fontSize: '11px' }} onClick={() => { const link = `${window.location.origin}${window.location.pathname}?imovel=${property.id}`; navigator.clipboard.writeText(link); alert('Link da landing page copiado!'); }}>🔗 Copiar Link</button>
-                        <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => window.open(`${window.location.origin}${window.location.pathname}?imovel=${property.id}`, '_blank')}>Ver Landing</button>
+                        <button className="btn btn-secondary" style={{ padding: '6px 10px', fontSize: '11px' }} onClick={() => { const link = getPropertyPublicURL(property); navigator.clipboard.writeText(link); alert('Link de SEO da landing page copiado!\n\n' + link); }}>🔗 Copiar Link SEO</button>
+                        <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => window.open(getPropertyPublicURL(property), '_blank')}>Ver Landing</button>
                         <button className="btn btn-secondary" style={{ padding: '6px 10px', fontSize: '11px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }} onClick={() => handleDeleteProperty(property.id)}>Excluir</button>
                       </div>
                     </div>
@@ -1087,7 +1141,7 @@ export default function App() {
                 <p style={{ color: '#94a3b8', fontSize: '14px' }}>Sua landing page de vendas foi gerada. Compartilhe o link abaixo.</p>
               </div>
               <div style={{ display: 'flex', gap: '20px', padding: '20px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid #1f2937', marginBottom: '24px', flexWrap: 'wrap' }}>
-                <div style={{ width: '140px', height: '140px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0 }}><img src={lastCreatedProperty.images?.[0]?.url || lastCreatedProperty.image || `${ASSETS}creativo_casa.png`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /></div>
+                <div style={{ width: '140px', height: '140px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0 }}><img src={lastCreatedProperty.images?.[0]?.url || lastCreatedProperty.image || '/imoveis/creativo_casa.png'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /></div>
                 <div style={{ flex: 1, minWidth: '200px' }}>
                   <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '6px' }}>{lastCreatedProperty.title}</h2>
                   <p style={{ fontSize: '22px', fontWeight: 700, color: '#06b6d4', marginBottom: '6px' }}>{lastCreatedProperty.price.startsWith('R$') ? lastCreatedProperty.price : `R$ ${lastCreatedProperty.price}`}</p>
@@ -1096,14 +1150,14 @@ export default function App() {
                 </div>
               </div>
               <div style={{ padding: '20px', borderRadius: '10px', backgroundColor: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', marginBottom: '24px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>🔗 Link da Sua Landing Page</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>🔗 Link de SEO da sua Landing Page</div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#0d121f', borderRadius: '8px', padding: '8px 12px', border: '1px solid #1f2937' }}>
-                  <code style={{ flex: 1, fontSize: '13px', color: '#06b6d4', fontFamily: 'monospace', wordBreak: 'break-all' }}>{`${window.location.origin}${window.location.pathname}?imovel=${lastCreatedProperty.id}`}</code>
-                  <button className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '12px', whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => { navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?imovel=${lastCreatedProperty.id}`); alert('Link copiado!'); }}>📋 Copiar</button>
+                  <code style={{ flex: 1, fontSize: '13px', color: '#06b6d4', fontFamily: 'monospace', wordBreak: 'break-all' }}>{getPropertyPublicURL(lastCreatedProperty)}</code>
+                  <button className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '12px', whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => { navigator.clipboard.writeText(getPropertyPublicURL(lastCreatedProperty)); alert('Link de SEO copiado!'); }}>📋 Copiar Link SEO</button>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => window.open(`${window.location.origin}${window.location.pathname}?imovel=${lastCreatedProperty.id}`, '_blank')}>👁️ Visualizar Landing</button>
+                <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => window.open(getPropertyPublicURL(lastCreatedProperty), '_blank')}>👁️ Visualizar Landing Page</button>
                 <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => { setLastCreatedProperty(null); setActiveTab('imoveis'); }}>📋 Ver Meus Imóveis</button>
               </div>
             </div>
@@ -1266,7 +1320,7 @@ export default function App() {
             <div className="page-title" style={{ marginBottom: '24px' }}><h1>Meu Perfil</h1><p>Configure seus dados. Os leads chegam diretamente neste WhatsApp.</p></div>
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '20px 0 8px' }}>
-                <div style={{ width: '108px', height: '108px', borderRadius: '50%', overflow: 'hidden' }}><img src={`${ASSETS}corretor-independente.webp`} alt="Corretor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
+                <div style={{ width: '108px', height: '108px', borderRadius: '50%', overflow: 'hidden' }}><img src="/imoveis/corretor-independente.webp" alt="Corretor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
                 <span className="badge badge-info">Corretor Independente</span>
               </div>
               <ProfileEditForm profile={corretorProfile} onSave={async (updated) => {
@@ -1310,9 +1364,9 @@ function EquipeTab({ brokers, setBrokers, equipeId, userId, onNavigate }) {
   useEffect(() => {
     if (equipeId) { setResolvedEquipeId(equipeId); return; }
     if (!userId) return;
-    supabase.from('equipes').select('id').eq('admin_user_id', userId).order('created_at', { ascending: true }).then(({ data }) => {
-      if (data && data.length > 0) setResolvedEquipeId(data[0].id);
-      else alert('Diagnóstico: equipe não encontrada. Seu userId: ' + userId);
+    supabase.from('equipes').select('id').eq('admin_user_id', userId).single().then(({ data, error }) => {
+      if (data) setResolvedEquipeId(data.id);
+      else alert('Diagnóstico: equipes não encontrada. Erro: ' + (error?.message || 'sem dados') + '. Seu userId: ' + userId);
     });
   }, [equipeId, userId]);
 
@@ -1424,6 +1478,20 @@ function EquipeTab({ brokers, setBrokers, equipeId, userId, onNavigate }) {
           {brokers.length === 0 && <div style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>Nenhum corretor cadastrado. Adicione corretores acima para começar a distribuir leads.</div>}
         </div>
       </div>
+      <footer style={{ marginTop: '40px', padding: '24px', textAlign: 'center', fontSize: '12px', color: '#64748b', borderTop: '1px solid #1f2937' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '8px' }}>
+          <button type="button" onClick={() => setLegalViewPage('privacy')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+            Política de Privacidade
+          </button>
+          <span style={{ color: '#334155' }}>•</span>
+          <button type="button" onClick={() => setLegalViewPage('terms')} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline', padding: 0 }}>
+            Termos de Uso
+          </button>
+        </div>
+        <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#94a3b8' }}>
+          © 2026 PEIXEWEB AGÊNCIA DIGITAL. TODOS OS DIREITOS RESERVADOS.
+        </p>
+      </footer>
     </div>
   );
 }
