@@ -48,6 +48,14 @@ function getMinEscore(rule) {
   return escore < 50 ? 50 : escore;
 }
 
+function formatWhatsAppForWA(phone) {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('55')) return digits;
+  if (digits.length >= 10) return `55${digits}`;
+  return '';
+}
+
 async function groqChat(systemPrompt, messages) {
   if (!GROQ_API_KEY) return null;
   try {
@@ -549,7 +557,7 @@ export default function App() {
         }, 2000);
         setIsTyping(false); return;
       }
-      const brokerWa = prop?.brokerWhatsapp || '';
+      const brokerWa = formatWhatsAppForWA(prop?.brokerWhatsapp);
       addBotMessage(`📊 **Análise de Perfil**\n\n**Nome:** ${publicLeadName}\n**Renda:** ${faixa.label}\n**Escore:** ${faixa.escore} pts\n\n✅ **Perfil Aprovado!**`);
       setTimeout(async () => {
         setChatMessages(prev => [...prev, { sender: 'bot', text: `Parabéns **${publicLeadName}**! Seu perfil foi aprovado! Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
@@ -622,7 +630,7 @@ export default function App() {
     );
     const property = publicProperty;
     const isQualified = chatMessages.some(m => m.sender === 'bot' && m.text.toLowerCase().includes('aprovado'));
-    const brokerWa = property.brokerWhatsapp || '559999999999';
+    const brokerWa = formatWhatsAppForWA(property.brokerWhatsapp);
     return (
       <div style={{ height: '100vh', backgroundImage: 'url(/sao_paulo.webp)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', width: '100%', position: 'relative', overflow: 'hidden' }}>
         <SEOHead property={property} title={property.title} />
@@ -704,7 +712,9 @@ export default function App() {
                 <div className="chat-menu-body">
                   <p style={{ fontSize: '12px', color: '#8696a0', padding: '0 4px 8px', margin: 0, lineHeight: 1.4 }}>Olá! Como podemos ajudar você com o imóvel <strong style={{ color: '#e0e0e0' }}>{property.title}</strong>?</p>
                   <button className="chat-option-btn" onClick={() => { if (simStep === 0) handleStartSimChat(); setShowChatMenu(false); }}><span className="chat-option-icon">💬</span><span className="chat-option-label">Falar com Atendente</span><span className="chat-option-arrow">›</span></button>
-                  <button className="chat-option-btn" onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Gostaria de agendar uma visita para o imóvel: ${property.title} - ${property.price}`)}`; window.open(wa, '_blank') || (location.href = wa); }}><span className="chat-option-icon">📅</span><span className="chat-option-label">Agendar Visita</span><span className="chat-option-arrow">›</span></button>
+                  {brokerWa && (
+                    <button className="chat-option-btn" onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Gostaria de agendar uma visita para o imóvel: ${property.title} - ${property.price}`)}`; window.open(wa, '_blank') || (location.href = wa); }}><span className="chat-option-icon">📅</span><span className="chat-option-label">Agendar Visita</span><span className="chat-option-arrow">›</span></button>
+                  )}
                   <button className="chat-option-btn chat-option-btn--sair" onClick={() => setChatOpen(false)}><span className="chat-option-icon">🚪</span><span className="chat-option-label">Sair</span></button>
                 </div>
               </>
@@ -732,12 +742,17 @@ export default function App() {
                 <form className="chat-input-area" onSubmit={handlePublicSendMessage}>
                   {simStep === 6 ? (
                     <div style={{ width: '100%', textAlign: 'center', padding: '6px 0' }}>
-                      {isQualified ? (
-                        <>
-                          <div style={{ color: '#25d366', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>✅ Qualificado!</div>
-                          <button type="button" onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel: ${property.title} - ${property.price}`)}`; window.open(wa, '_blank') || (location.href = wa); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', padding: '8px 14px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #25d366, #128C7E)', color: 'white', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>💬 Falar no WhatsApp</button>
-                        </>
-                      ) : <div style={{ color: '#8696a0', fontSize: '12px', fontWeight: 500 }}>❌ Perfil não se qualificou.</div>}
+{isQualified ? (
+                          <>
+                            <div style={{ color: '#25d366', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>✅ Qualificado!</div>
+                            {brokerWa && (
+                              <button type="button" onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel: ${property.title} - ${property.price}`)}`; window.open(wa, '_blank') || (location.href = wa); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', padding: '8px 14px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #25d366, #128C7E)', color: 'white', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>💬 Falar no WhatsApp</button>
+                            )}
+                            {!brokerWa && (
+                              <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: 500, marginTop: '6px' }}>⚠️ WhatsApp do corretor não cadastrado</div>
+                            )}
+                          </>
+                        ) : <div style={{ color: '#8696a0', fontSize: '12px', fontWeight: 500 }}>❌ Perfil não se qualificou.</div>}
                     </div>
                   ) : (
                     <><input type="text" className="chat-input" placeholder="Digite sua resposta..." value={typedMessage} onChange={(e) => setTypedMessage(e.target.value)} disabled={isTyping} /><button type="submit" className="chat-send-btn" disabled={isTyping}><ArrowRight size={18} /></button></>
