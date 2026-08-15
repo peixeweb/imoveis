@@ -773,7 +773,7 @@ export default function App() {
         <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '36px', textAlign: 'center' }}>Escolha o perfil que melhor descreve o seu caso</p>
         <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '760px', width: '100%' }}>
           <div className="mode-card" onClick={() => setAuthScreen('signup-solo')}>
-            <img src="/corretor-independente.webp" alt="Corretor" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
+            <div className="mode-card-icon"><img src="/corretor-independente.webp" alt="Corretor" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
             <h3 className="mode-card-title">Corretor Independente</h3>
             <p className="mode-card-desc">Trabalha sozinho e quer que todos os leads chegem diretamente no seu WhatsApp.</p>
             <ul className="mode-card-list"><li>✅ Landing page vinculada ao seu WhatsApp</li><li>✅ Todos os leads vão direto para você</li><li>✅ Sem divisão com outros corretores</li></ul>
