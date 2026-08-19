@@ -30,7 +30,7 @@ export function getPropertyPublicURL(property) {
   const slug = getPropertySEOSlug(property);
   const origin = window.location.origin;
   // URL 100% limpa sem interrogação '?' e sem misturas de letras e números/UUIDs
-  return `${origin}/imoveis/${slug}`;
+  return `${origin}/${slug}`;
 }
 
 export function findPropertyBySlug(properties, targetSlug) {

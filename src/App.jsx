@@ -109,17 +109,12 @@ export default function App() {
   const urlPageParam = urlParams.get('page');
   const urlSlugParam = urlParams.get('slug');
 
-  // URL Limpa por Path Slug: ex. /imoveis/casa-em-parque-piaui-teresina-quadra-63-piaui
+  // URL Limpa por Path Slug: ex. /casa-em-parque-piaui-teresina-quadra-63-piaui
   const pathname = window.location.pathname;
   let pathSlug = '';
-  if (pathname.includes('/imoveis/') && pathname.split('/imoveis/')[1]) {
-    const rawSlug = pathname.split('/imoveis/')[1].replace(/\/$/, '');
+  if (pathname !== '/' && pathname !== '/index.html') {
+    const rawSlug = pathname.replace(/^\//, '').replace(/\/$/, '');
     if (rawSlug && rawSlug !== 'index.html') {
-      pathSlug = decodeURIComponent(rawSlug);
-    }
-  } else if (pathname.includes('/imovel/') && pathname.split('/imovel/')[1]) {
-    const rawSlug = pathname.split('/imovel/')[1].replace(/\/$/, '');
-    if (rawSlug) {
       pathSlug = decodeURIComponent(rawSlug);
     }
   }
@@ -137,12 +132,14 @@ export default function App() {
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
   const [simStep, setSimStep] = useState(0);
   const [simInputName, setSimInputName] = useState('');
+  const [simInputProfession, setSimInputProfession] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const [typedMessage, setTypedMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const chatBodyRef = useRef(null);
   const [groqHistory, setGroqHistory] = useState([]);
   const [publicLeadName, setPublicLeadName] = useState('');
+  const [publicLeadProfession, setPublicLeadProfession] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
   const [showChatMenu, setShowChatMenu] = useState(true);
 
@@ -443,8 +440,22 @@ export default function App() {
     if (!prop) return;
     if (GROQ_API_KEY) {
       const minEscore = getMinEscore(prop.rule);
-      const faixasStr = INCOME_FAIXAS.map(f => `- ${f.value} → Escore ${f.escore}`).join('\n');
-      const systemPrompt = `Você é a "IA" da ImobiFlow, assistente virtual de uma imobiliária.\n\nIMÓVEL: ${prop.title}\nVALOR: ${prop.price}\nREGRAS: ${prop.rule}\n\nINSTRUÇÕES:\n- Fale português brasileiro, seja educado e breve.\n- Apresente-se e pergunte apenas o NOME do lead. NÃO peça renda ainda.`;
+      const faixasStr = INCOME_FAIXAS.map(f => `- ${f.label}: "${f.value}" → Escore ${f.escore}`).join('\n');
+      const systemPrompt = `Você é a "IA" da ImobiFlow, atendente virtual de imóveis no Brasil. Estilo: acolhedor, natural, WhatsApp.
+
+IMÓVEL: ${prop.title}
+VALOR: ${prop.price}
+REGRAS: ${prop.rule} (escore mínimo: ${minEscore})
+
+FAIXAS DE RENDA:
+${faixasStr}
+
+INSTRUÇÕES:
+- Tom: humano, breve, use emojis 😊
+- Cumprimente, cite o imóvel, pergunte NOME
+- Depois pergunte PROFISSÃO
+- Depois mostre as faixas de renda e peça o número
+- Quando tiver os 3, envie bloco ---DADOS_LEAD---`;
       const greeting = await groqChat(systemPrompt, [{ role: 'user', content: 'Inicie o atendimento.' }]);
       if (greeting) {
         setChatMessages([{ sender: 'bot', text: greeting, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
@@ -453,8 +464,9 @@ export default function App() {
         return;
       }
     }
-    setChatMessages([{ sender: 'bot', text: `Olá! Seja bem-vindo ao portal de atendimento do imóvel *${prop.title}*.`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-    setTimeout(() => { addBotMessage('Para começarmos, por favor me diga seu **nome completo**.', 500); setSimStep(2); }, 1200);
+    setChatMessages([{ sender: 'bot', text: `Oi! Tudo bem? 😊 Sou a atendente virtual do imóvel *${prop.title}*. Qual seu nome?`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+    setGroqHistory([{ role: 'assistant', content: `Oi! Tudo bem? 😊 Sou a atendente virtual do imóvel *${prop.title}*. Qual seu nome?` }]);
+    setSimStep(2);
   };
 
   const handleSendLeadMessage = async (e) => {
@@ -467,23 +479,28 @@ export default function App() {
     if (simStep === 2) {
       setSimInputName(userMsg);
       setSimStep(3);
-      const faixasTexto = INCOME_FAIXAS.map((f, i) => `*${i + 1}* — ${f.label}`).join('\n');
-      addBotMessage(`Ótimo, **${userMsg}**! Agora me diga qual a sua **faixa de renda mensal**:\n\n${faixasTexto}\n\nDigite apenas o número correspondente.`, 1000);
+      addBotMessage(`Que legal, **${userMsg}**! 😊 E o que você faz profissionalmente?`, 1000);
     } else if (simStep === 3) {
+      setSimInputProfession(userMsg);
+      setSimStep(4);
+      const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}️⃣ ${f.label}`).join('\n');
+      addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número 😉`, 1000);
+    } else if (simStep === 4) {
       const index = parseInt(userMsg) - 1;
       const faixa = INCOME_FAIXAS[index];
       if (!faixa) {
-        const faixasTexto = INCOME_FAIXAS.map((f, i) => `*${i + 1}* — ${f.label}`).join('\n');
-        addBotMessage(`Opção inválida. Por favor, digite o número:\n\n${faixasTexto}`, 800);
+        const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}️⃣ ${f.label}`).join('\n');
+        addBotMessage(`Opção inválida. Me diz o número da faixa, por favor 😊`, 800);
         return;
       }
       const leadName = simInputName || 'Lead Simulado';
+      const leadProfession = simInputProfession || '';
       const minEscore = getMinEscore(selectedProperty?.rule);
       const isQualified = faixa.escore >= minEscore;
       setSimStep(5);
 
       if (!isQualified) {
-        addBotMessage(`📊 **Análise de Perfil**\n\n**Nome:** ${leadName}\n**Renda:** ${faixa.label}\n**Escore:** ${faixa.escore} pts\n**Mínimo exigido:** ${minEscore} pts\n\nInfelizmente seu perfil não atende aos critérios de renda para este imóvel. Agradecemos pelo interesse! 🙏`, 1000);
+        addBotMessage(`Obrigado, **${leadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! 🙏`, 1000);
         setTimeout(async () => {
           await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Inválido p/ Imóvel', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: 'Sistema (Desqualificado)', brokerCreci: '', stage: 'Perdido', whatsapp: '' });
           setSimStep(6);
@@ -493,7 +510,7 @@ export default function App() {
         let assignedBroker;
         if (corretorProfile?.modo === 'solo') {
           assignedBroker = { id: corretorProfile.id, name: corretorProfile.nome, creci: corretorProfile.creci };
-          addBotMessage(`📊 **Análise de Perfil**\n\n**Nome:** ${leadName}\n**Renda:** ${faixa.label}\n**Escore:** ${faixa.escore} pts\n\n✅ **Perfil Aprovado!** Roteando atendimento...`, 1000);
+          addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado ✅`, 1000);
           setTimeout(async () => {
             addBotMessage(`🎉 **Lead Direcionado!**\nO lead foi registrado para o corretor **${corretorProfile.nome}** (${corretorProfile.creci}).`, 1000);
             await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Regular', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: corretorProfile.nome, brokerCreci: corretorProfile.creci, corretorId: corretorProfile.id, stage: 'Novo', whatsapp: '' });
@@ -504,7 +521,7 @@ export default function App() {
           const nextIdx = roundRobinIndex % (availableBrokers.length || 1);
           assignedBroker = availableBrokers[nextIdx] || { id: null, name: 'Equipe', creci: '' };
           setRoundRobinIndex(prev => prev + 1);
-          addBotMessage(`📊 **Análise de Perfil**\n\n**Nome:** ${leadName}\n**Renda:** ${faixa.label}\n**Escore:** ${faixa.escore} pts\n\n✅ **Perfil Aprovado!** Roteando atendimento...`, 1000);
+          addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado ✅`, 1000);
           setTimeout(async () => {
             addBotMessage(`🎉 **Atendimento Direcionado!**\nO corretor sorteado é **${assignedBroker.name}** (${assignedBroker.creci}).`, 1000);
             await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Regular', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: assignedBroker.name, brokerCreci: assignedBroker.creci || '', corretorId: assignedBroker.id, stage: 'Novo', whatsapp: '' });
@@ -520,7 +537,7 @@ export default function App() {
     }
   };
 
-  const handleResetSim = () => { setSimStep(0); setChatMessages([]); setTypedMessage(''); setPublicLeadName(''); setGroqHistory([]); };
+  const handleResetSim = () => { setSimStep(0); setChatMessages([]); setTypedMessage(''); setSimInputName(''); setSimInputProfession(''); setPublicLeadName(''); setPublicLeadProfession(''); setGroqHistory([]); };
 
   const getLeadsByStage = (stage) => leads.filter(l => l.stage === stage);
 
@@ -538,17 +555,22 @@ export default function App() {
       // Local fallback
       if (!publicLeadName) {
         setPublicLeadName(userMsg);
-        const faixasTexto = INCOME_FAIXAS.map((f, i) => `*${i + 1}* — ${f.label}`).join('\n');
-        addBotMessage(`Ótimo, **${userMsg}**! Agora me diga qual a sua **faixa de renda mensal**:\n\n${faixasTexto}\n\nDigite apenas o número correspondente.`);
+        addBotMessage(`Que legal, **${userMsg}**! 😊 E o que você faz profissionalmente?`);
+        setIsTyping(false); return;
+      }
+      if (!publicLeadProfession) {
+        setPublicLeadProfession(userMsg);
+        const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}️⃣ ${f.label}`).join('\n');
+        addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número 😉`);
         setIsTyping(false); return;
       }
       const index = parseInt(userMsg) - 1;
       const faixa = INCOME_FAIXAS[index];
-      if (!faixa) { addBotMessage(`Opção inválida. Digite o número da faixa de renda.`); setIsTyping(false); return; }
+      if (!faixa) { addBotMessage(`Opção inválida. Me diz o número da faixa, por favor 😊`); setIsTyping(false); return; }
       const minEscore = getMinEscore(prop?.rule);
       const isQualified = faixa.escore >= minEscore;
       if (!isQualified) {
-        addBotMessage(`📊 **Análise de Perfil**\n\n**Nome:** ${publicLeadName}\n**Renda:** ${faixa.label}\n**Escore:** ${faixa.escore} pts\n\nInfelizmente seu perfil não atende aos critérios de renda para este imóvel. Agradecemos pelo interesse! 🙏`);
+        addBotMessage(`Obrigado, **${publicLeadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! 🙏`);
         setTimeout(async () => {
           await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Inválido p/ Imóvel', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: 'Sistema (Desqualificado)', corretor_creci: '', estagio: 'Perdido', whatsapp: '' });
           setSimStep(6);
@@ -556,9 +578,9 @@ export default function App() {
         setIsTyping(false); return;
       }
       const brokerWa = prop?.brokerWhatsapp || '';
-      addBotMessage(`📊 **Análise de Perfil**\n\n**Nome:** ${publicLeadName}\n**Renda:** ${faixa.label}\n**Escore:** ${faixa.escore} pts\n\n✅ **Perfil Aprovado!**`);
+      addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado ✅`);
       setTimeout(async () => {
-        setChatMessages(prev => [...prev, { sender: 'bot', text: `Parabéns **${publicLeadName}**! Seu perfil foi aprovado! Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+        setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
         await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'Novo', whatsapp: '' });
         await supabase.from('imoveis').update({ leads_count: (prop?.leadsCount || 0) + 1 }).eq('id', prop?.id);
         setSimStep(6);
@@ -571,7 +593,43 @@ export default function App() {
     setGroqHistory(updatedHistory);
     const minEscore = getMinEscore(prop?.rule);
     const faixasStr = INCOME_FAIXAS.map(f => `- ${f.label}: "${f.value}" → Escore ${f.escore}`).join('\n');
-    const systemPrompt = `Você é a "IA" da ImobiFlow. Seu papel é QUALIFICAR leads.\n\nIMÓVEL: ${prop?.title}\nVALOR: ${prop?.price}\nREGRAS: ${prop?.rule} (escore mínimo: ${minEscore})\n\nFAIXAS DE RENDA:\n${faixasStr}\n\nREGRAS:\n1. Fale português brasileiro, seja educado e breve.\n2. Pergunte NOME, PROFISSÃO e RENDA, um de cada vez.\n3. Quando tiver NOME + PROFISSÃO + RENDA, termine com:\n---DADOS_LEAD---\nNOME: nome\nPROFISSAO: profissão\nRENDA: valor\nESCORE: número\n---FIM_DADOS---`;
+    const systemPrompt = `Você é a "IA" da ImobiFlow, atendente virtual especializada em imóveis no Brasil. Seu papel é QUALIFICAR leads de forma natural e acolhedora, como um corretor experiente faria no WhatsApp.
+
+IMÓVEL: ${prop?.title}
+VALOR: ${prop?.price}
+REGRAS: ${prop?.rule} (escore mínimo: ${minEscore})
+
+FAIXAS DE RENDA:
+${faixasStr}
+
+=== ESTILO DE COMUNICAÇÃO (OBRIGATÓRIO) ===
+- Tom: Acolhedor, profissional, humano — NÃO robótico
+- Linguagem: Português brasileiro natural, com expressões do dia a dia
+- Formato: Mensagens curtas (estilo WhatsApp), uma pergunta por vez
+- Use: "Oi", "Tudo bem?", "Que legal!", "Entendi", "Perfeito", "Show"
+- Evite: "Olá, sou a IA", "Conforme solicitado", "Por gentileza informe", listas numeradas
+
+=== FLUXO DE QUALIFICAÇÃO ===
+1. BOAS-VINDAS: Apresente-se brevemente, cite o imóvel, pergunte o NOME
+2. PROFISSÃO: Após o nome, pergunte o que a pessoa faz (trabalho/renda)
+3. RENDA: Pergunte a faixa de renda mensal (mostre as opções de forma natural)
+4. FINALIZAÇÃO: Quando tiver NOME + PROFISSÃO + RENDA, envie o bloco de dados
+
+=== EXEMPLOS DE COMO FALAR ===
+✅ "Oi! Tudo bem? 😊 Sou a atendente virtual do imóvel [TÍTULO]. Qual seu nome?"
+✅ "Que legal, [NOME]! E o que você faz profissionalmente?"
+✅ "Entendi! E sua renda mensal se encaixa em qual faixa?\n1️⃣ Até R$ 3.000\n2️⃣ R$ 3.000 a R$ 5.000\n3️⃣ R$ 5.000 a R$ 7.000\n4️⃣ R$ 7.000 a R$ 10.000\n5️⃣ Acima de R$ 10.000\n\nSó me diz o número 😉"
+❌ "Olá. Sou a IA da ImobiFlow. Informe seu nome completo."
+❌ "Conforme nossas regras, necessito saber sua profissão."
+❌ "Por favor, selecione uma das opções abaixo."
+
+=== SAÍDA OBRIGATÓRIA (quando tiver os 3 dados) ===
+---DADOS_LEAD---
+NOME: [nome completo]
+PROFISSAO: [profissão]
+RENDA: [valor exato da faixa, ex: "R$ 5.000 a R$ 7.000"]
+ESCORE: [número do escore correspondente]
+---FIM_DADOS---`;
     const response = await groqChat(systemPrompt, updatedHistory);
     if (!response) { setIsTyping(false); return; }
     setIsTyping(false);
