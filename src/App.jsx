@@ -451,7 +451,7 @@ FAIXAS DE RENDA:
 ${faixasStr}
 
 INSTRUÇÕES:
-- Tom: humano, breve, use emojis 😊
+- Tom: humano, breve, use emojis 
 - Cumprimente, cite o imóvel, pergunte NOME
 - Depois pergunte PROFISSÃO
 - Depois mostre as faixas de renda e peça o número
@@ -464,8 +464,8 @@ INSTRUÇÕES:
         return;
       }
     }
-    setChatMessages([{ sender: 'bot', text: `Oi! Tudo bem? 😊 Sou a atendente virtual do imóvel *${prop.title}*. Qual seu nome?`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-    setGroqHistory([{ role: 'assistant', content: `Oi! Tudo bem? 😊 Sou a atendente virtual do imóvel *${prop.title}*. Qual seu nome?` }]);
+    setChatMessages([{ sender: 'bot', text: `Oi! Tudo bem?  Sou a atendente virtual do imóvel *${prop.title}*. Qual seu nome?`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+    setGroqHistory([{ role: 'assistant', content: `Oi! Tudo bem?  Sou a atendente virtual do imóvel *${prop.title}*. Qual seu nome?` }]);
     setSimStep(2);
   };
 
@@ -479,18 +479,18 @@ INSTRUÇÕES:
     if (simStep === 2) {
       setSimInputName(userMsg);
       setSimStep(3);
-      addBotMessage(`Que legal, **${userMsg}**! 😊 E o que você faz profissionalmente?`, 1000);
+      addBotMessage(`Que legal, **${userMsg}**!  E o que você faz profissionalmente?`, 1000);
     } else if (simStep === 3) {
       setSimInputProfession(userMsg);
       setSimStep(4);
-      const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}️⃣ ${f.label}`).join('\n');
-      addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número 😉`, 1000);
+      const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}. ${f.label}`).join('\n');
+      addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número `, 1000);
     } else if (simStep === 4) {
       const index = parseInt(userMsg) - 1;
       const faixa = INCOME_FAIXAS[index];
       if (!faixa) {
-        const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}️⃣ ${f.label}`).join('\n');
-        addBotMessage(`Opção inválida. Me diz o número da faixa, por favor 😊`, 800);
+        const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}. ${f.label}`).join('\n');
+        addBotMessage(`Opção inválida. Me diz o número da faixa, por favor `, 800);
         return;
       }
       const leadName = simInputName || 'Lead Simulado';
@@ -500,7 +500,7 @@ INSTRUÇÕES:
       setSimStep(5);
 
       if (!isQualified) {
-        addBotMessage(`Obrigado, **${leadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! 🙏`, 1000);
+        addBotMessage(`Obrigado, **${leadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! `, 1000);
         setTimeout(async () => {
           await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Inválido p/ Imóvel', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: 'Sistema (Desqualificado)', brokerCreci: '', stage: 'Perdido', whatsapp: '' });
           setSimStep(6);
@@ -510,9 +510,9 @@ INSTRUÇÕES:
         let assignedBroker;
         if (corretorProfile?.modo === 'solo') {
           assignedBroker = { id: corretorProfile.id, name: corretorProfile.nome, creci: corretorProfile.creci };
-          addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado ✅`, 1000);
+          addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado `, 1000);
           setTimeout(async () => {
-            addBotMessage(`🎉 **Lead Direcionado!**\nO lead foi registrado para o corretor **${corretorProfile.nome}** (${corretorProfile.creci}).`, 1000);
+            addBotMessage(` **Lead Direcionado!**\nO lead foi registrado para o corretor **${corretorProfile.nome}** (${corretorProfile.creci}).`, 1000);
             await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Regular', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: corretorProfile.nome, brokerCreci: corretorProfile.creci, corretorId: corretorProfile.id, stage: 'lead_validado', whatsapp: '' });
             await incrementPropertyLeads(selectedProperty?.id);
             setSimStep(6);
@@ -521,9 +521,9 @@ INSTRUÇÕES:
           const nextIdx = roundRobinIndex % (availableBrokers.length || 1);
           assignedBroker = availableBrokers[nextIdx] || { id: null, name: 'Equipe', creci: '' };
           setRoundRobinIndex(prev => prev + 1);
-          addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado ✅`, 1000);
+          addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado `, 1000);
           setTimeout(async () => {
-            addBotMessage(`🎉 **Atendimento Direcionado!**\nO corretor sorteado é **${assignedBroker.name}** (${assignedBroker.creci}).`, 1000);
+            addBotMessage(` **Atendimento Direcionado!**\nO corretor sorteado é **${assignedBroker.name}** (${assignedBroker.creci}).`, 1000);
             await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Regular', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: assignedBroker.name, brokerCreci: assignedBroker.creci || '', corretorId: assignedBroker.id, stage: 'lead_validado', whatsapp: '' });
             await incrementPropertyLeads(selectedProperty?.id);
             if (assignedBroker.id) {
@@ -555,22 +555,22 @@ INSTRUÇÕES:
       // Local fallback
       if (!publicLeadName) {
         setPublicLeadName(userMsg);
-        addBotMessage(`Que legal, **${userMsg}**! 😊 E o que você faz profissionalmente?`);
+        addBotMessage(`Que legal, **${userMsg}**!  E o que você faz profissionalmente?`);
         setIsTyping(false); return;
       }
       if (!publicLeadProfession) {
         setPublicLeadProfession(userMsg);
-        const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}️⃣ ${f.label}`).join('\n');
-        addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número 😉`);
+        const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}. ${f.label}`).join('\n');
+        addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número `);
         setIsTyping(false); return;
       }
       const index = parseInt(userMsg) - 1;
       const faixa = INCOME_FAIXAS[index];
-      if (!faixa) { addBotMessage(`Opção inválida. Me diz o número da faixa, por favor 😊`); setIsTyping(false); return; }
+      if (!faixa) { addBotMessage(`Opção inválida. Me diz o número da faixa, por favor `); setIsTyping(false); return; }
       const minEscore = getMinEscore(prop?.rule);
       const isQualified = faixa.escore >= minEscore;
       if (!isQualified) {
-        addBotMessage(`Obrigado, **${publicLeadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! 🙏`);
+        addBotMessage(`Obrigado, **${publicLeadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! `);
         setTimeout(async () => {
           await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Inválido p/ Imóvel', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: 'Sistema (Desqualificado)', corretor_creci: '', estagio: 'Perdido', whatsapp: '' });
           setSimStep(6);
@@ -578,9 +578,9 @@ INSTRUÇÕES:
         setIsTyping(false); return;
       }
       const brokerWa = prop?.brokerWhatsapp || '';
-      addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado ✅`);
+      addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado `);
       setTimeout(async () => {
-        setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+        setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. `, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
         await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'lead_validado', whatsapp: '' });
         await supabase.from('imoveis').update({ leads_count: (prop?.leadsCount || 0) + 1 }).eq('id', prop?.id);
         setSimStep(6);
@@ -595,15 +595,15 @@ INSTRUÇÕES:
     if (msgCount === 1) {
       // Usuário enviou nome
       setPublicLeadName(userMsg);
-      addBotMessage(`Que legal, **${userMsg}**! 😊 E o que você faz profissionalmente?`);
+      addBotMessage(`Que legal, **${userMsg}**!  E o que você faz profissionalmente?`);
       setIsTyping(false); return;
     }
 
     if (msgCount === 2) {
       // Usuário enviou profissão
       setPublicLeadProfession(userMsg);
-      const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}️⃣ ${f.label}`).join('\n');
-      addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número 😉`);
+      const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}. ${f.label}`).join('\n');
+      addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número `);
       setIsTyping(false); return;
     }
 
@@ -611,20 +611,20 @@ INSTRUÇÕES:
       // Usuário enviou número da faixa
       const index = parseInt(userMsg) - 1;
       const faixa = INCOME_FAIXAS[index];
-      if (!faixa) { addBotMessage(`Opção inválida. Me diz o número da faixa, por favor 😊`); setIsTyping(false); return; }
+      if (!faixa) { addBotMessage(`Opção inválida. Me diz o número da faixa, por favor `); setIsTyping(false); return; }
       const minEscore = getMinEscore(prop?.rule);
       const isQualified = faixa.escore >= minEscore;
       if (!isQualified) {
-        addBotMessage(`Obrigado, **${publicLeadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! 🙏`);
+        addBotMessage(`Obrigado, **${publicLeadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! `);
         setTimeout(async () => {
           await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Inválido p/ Imóvel', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: 'Sistema (Desqualificado)', corretor_creci: '', estagio: 'Perdido', whatsapp: '' });
           setSimStep(6);
         }, 2000);
         setIsTyping(false); return;
       }
-      addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado ✅`);
+      addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado `);
       setTimeout(async () => {
-        setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+        setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. `, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
         await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'lead_validado', whatsapp: '' });
         await supabase.from('imoveis').update({ leads_count: (prop?.leadsCount || 0) + 1 }).eq('id', prop?.id);
         setSimStep(6);
@@ -753,8 +753,8 @@ INSTRUÇÕES:
                   <button className="chat-option-btn" onClick={() => { 
               setShowChatMenu(false); 
               if (chatMessages.length === 0) {
-                setChatMessages([{ sender: 'bot', text: `Oi! Tudo bem? 😊 Sou a Clara, a IA do ImobiFlow! Qual seu nome?`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-                setGroqHistory([{ role: 'assistant', content: `Oi! Tudo bem? 😊 Sou a Clara, a IA do ImobiFlow! Qual seu nome?` }]);
+                setChatMessages([{ sender: 'bot', text: `Oi! Tudo bem?  Sou a Clara, a IA do ImobiFlow! Qual seu nome?`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+                setGroqHistory([{ role: 'assistant', content: `Oi! Tudo bem?  Sou a Clara, a IA do ImobiFlow! Qual seu nome?` }]);
               }
             }}><span className="chat-option-icon">💬</span><span className="chat-option-label">Falar com Atendente</span><span className="chat-option-arrow">›</span></button>
                   <button className="chat-option-btn" onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Gostaria de agendar uma visita para o imóvel: ${property.title} - ${property.price}`)}`; window.open(wa, '_blank') || (location.href = wa); }}><span className="chat-option-icon">📅</span><span className="chat-option-label">Agendar Visita</span><span className="chat-option-arrow">›</span></button>
@@ -787,7 +787,7 @@ INSTRUÇÕES:
                     <div style={{ width: '100%', textAlign: 'center', padding: '6px 0' }}>
                       {isQualified ? (
                         <>
-                          <div style={{ color: '#25d366', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>✅ Qualificado!</div>
+                          <div style={{ color: '#25d366', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}> Qualificado!</div>
                           <button type="button" onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Tenho interesse no imóvel: ${property.title} - ${property.price}`)}`; window.open(wa, '_blank') || (location.href = wa); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', padding: '8px 14px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #25d366, #128C7E)', color: 'white', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>💬 Falar no WhatsApp</button>
                         </>
                       ) : <div style={{ color: '#8696a0', fontSize: '12px', fontWeight: 500 }}>❌ Perfil não se qualificou.</div>}
@@ -829,14 +829,14 @@ INSTRUÇÕES:
             <div className="mode-card-icon"><img src="/corretor-independente.webp" alt="Corretor" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
             <h3 className="mode-card-title">Corretor Independente</h3>
             <p className="mode-card-desc">Trabalha sozinho e quer que todos os leads chegem diretamente no seu WhatsApp.</p>
-            <ul className="mode-card-list"><li>✅ Landing page vinculada ao seu WhatsApp</li><li>✅ Todos os leads vão direto para você</li><li>✅ Sem divisão com outros corretores</li></ul>
+            <ul className="mode-card-list"><li> Landing page vinculada ao seu WhatsApp</li><li> Todos os leads vão direto para você</li><li> Sem divisão com outros corretores</li></ul>
             <button className="btn btn-primary mode-card-btn">Entrar como Corretor ➜</button>
           </div>
           <div className="mode-card" onClick={() => setAuthScreen('signup-team')}>
             <div className="mode-card-icon"><img src="/imobiliaria.webp" alt="Imobiliária" style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover' }} /></div>
             <h3 className="mode-card-title">Imobiliária / Equipe</h3>
             <p className="mode-card-desc">Gerencia uma equipe de corretores com distribuição automática e justa (roleta).</p>
-            <ul className="mode-card-list"><li>✅ Distribuição automática (Roleta)</li><li>✅ Gestão de equipe completa</li><li>✅ Bloquear/desbloquear corretores</li></ul>
+            <ul className="mode-card-list"><li> Distribuição automática (Roleta)</li><li> Gestão de equipe completa</li><li> Bloquear/desbloquear corretores</li></ul>
             <button className="btn btn-primary mode-card-btn" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>Entrar como Imobiliária ➜</button>
           </div>
         </div>
@@ -1183,7 +1183,7 @@ INSTRUÇÕES:
           <div className="animate-slide" style={{ maxWidth: '780px', margin: '0 auto', width: '100%' }}>
             <div className="card" style={{ padding: '32px' }}>
               <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '32px' }}>✅</div>
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '32px' }}></div>
                 <h1 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '6px' }}>Imóvel Cadastrado com Sucesso!</h1>
                 <p style={{ color: '#94a3b8', fontSize: '14px' }}>Sua landing page de vendas foi gerada. Compartilhe o link abaixo.</p>
               </div>
@@ -1273,7 +1273,7 @@ INSTRUÇÕES:
                         <div className="kanban-card-meta">
                           {prevStage && <a onClick={() => handleMoveLead(lead.id, prevStage)} style={{ color: '#94a3b8', cursor: 'pointer' }}>Voltar</a>}
                           {lostStage && <a onClick={() => handleMoveLead(lead.id, lostStage)} style={{ color: '#ef4444', cursor: 'pointer' }}>Perdido</a>}
-                          {stage === 'Fechado' ? <span style={{ color: '#10b981', fontWeight: 'bold' }}>🎉 Fechado!</span> : nextStage && <a onClick={() => handleMoveLead(lead.id, nextStage)} style={{ color: color, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>{nextLabel} <ArrowRight size={12} /></a>}
+                          {stage === 'Fechado' ? <span style={{ color: '#10b981', fontWeight: 'bold' }}> Fechado!</span> : nextStage && <a onClick={() => handleMoveLead(lead.id, nextStage)} style={{ color: color, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}>{nextLabel} <ArrowRight size={12} /></a>}
                         </div>
                         <button onClick={() => handleDeleteLead(lead.id)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '10px', cursor: 'pointer', padding: '4px 0 0', textAlign: 'left' }}>Excluir</button>
                       </div>
@@ -1341,7 +1341,7 @@ INSTRUÇÕES:
                       {isTyping && <div className="message received" style={{ display: 'flex', gap: '4px', width: '60px', justifyContent: 'center', padding: '12px' }}><span style={{ width: '6px', height: '6px', backgroundColor: '#8696a0', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1s infinite' }} /><span style={{ width: '6px', height: '6px', backgroundColor: '#8696a0', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1s infinite 0.2s' }} /><span style={{ width: '6px', height: '6px', backgroundColor: '#8696a0', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1s infinite 0.4s' }} /></div>}
                     </div>
                     <form className="chat-input-area" onSubmit={handleSendLeadMessage}>
-                      {simStep === 6 ? <div style={{ width: '100%', textAlign: 'center', color: '#8696a0', fontSize: '13px', fontWeight: 600 }}>Simulação Concluída! Veja o Lead no <b>Dashboard</b> ou <b>CRM Kanban</b>. 🎉</div> : <><input type="text" className="chat-input" placeholder={simStep === 2 ? 'Digite seu nome completo...' : 'Digite o número da faixa de renda...'} value={typedMessage} onChange={e => setTypedMessage(e.target.value)} disabled={isTyping} /><button type="submit" className="chat-send-btn" disabled={isTyping}><ArrowRight size={20} /></button></>}
+                      {simStep === 6 ? <div style={{ width: '100%', textAlign: 'center', color: '#8696a0', fontSize: '13px', fontWeight: 600 }}>Simulação Concluída! Veja o Lead no <b>Dashboard</b> ou <b>CRM Kanban</b>. </div> : <><input type="text" className="chat-input" placeholder={simStep === 2 ? 'Digite seu nome completo...' : 'Digite o número da faixa de renda...'} value={typedMessage} onChange={e => setTypedMessage(e.target.value)} disabled={isTyping} /><button type="submit" className="chat-send-btn" disabled={isTyping}><ArrowRight size={20} /></button></>}
                     </form>
                   </div>
                 )}
