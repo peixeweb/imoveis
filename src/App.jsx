@@ -552,7 +552,11 @@ INSTRUÇÕES:
     const prop = publicProperty;
 
     if (!GROQ_API_KEY) {
-      // Local fallback
+      // Local fallback - primeira mensagem deve vir do bot (Clara se apresentando)
+      if (chatMessages.length === 0) {
+        addBotMessage(`Oi! Tudo bem? 😊 Sou a Clara, a IA do ImobiFlow! Qual seu nome?`);
+        setIsTyping(false); return;
+      }
       if (!publicLeadName) {
         setPublicLeadName(userMsg);
         addBotMessage(`Que legal, **${userMsg}**! 😊 E o que você faz profissionalmente?`);
@@ -581,7 +585,7 @@ INSTRUÇÕES:
       addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado ✅`);
       setTimeout(async () => {
         setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-        await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'Novo', whatsapp: '' });
+        await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'lead_validado', whatsapp: '' });
         await supabase.from('imoveis').update({ leads_count: (prop?.leadsCount || 0) + 1 }).eq('id', prop?.id);
         setSimStep(6);
       }, 1500);
@@ -594,7 +598,7 @@ INSTRUÇÕES:
     setGroqHistory(updatedHistory);
     const minEscore = getMinEscore(prop?.rule);
     const faixasStr = INCOME_FAIXAS.map(f => `- ${f.label}: "${f.value}" → Escore ${f.escore}`).join('\n');
-    const systemPrompt = `Você é a "IA" da ImobiFlow, atendente virtual especializada em imóveis no Brasil. Seu papel é QUALIFICAR leads de forma natural e acolhedora, como um corretor experiente faria no WhatsApp.
+    const systemPrompt = `Você é a **Clara**, a IA do ImobiFlow. Seu papel é QUALIFICAR leads no WhatsApp.
 
 IMÓVEL: ${prop?.title}
 VALOR: ${prop?.price}
@@ -603,28 +607,21 @@ REGRAS: ${prop?.rule} (escore mínimo: ${minEscore})
 FAIXAS DE RENDA:
 ${faixasStr}
 
-=== ESTILO DE COMUNICAÇÃO (OBRIGATÓRIO) ===
-- Tom: Acolhedor, profissional, humano — NÃO robótico
-- Linguagem: Português brasileiro natural, com expressões do dia a dia
-- Formato: Mensagens curtas (estilo WhatsApp), uma pergunta por vez
-- Use: "Oi", "Tudo bem?", "Que legal!", "Entendi", "Perfeito", "Show"
-- Evite: "Olá, sou a IA", "Conforme solicitado", "Por gentileza informe", listas numeradas
+=== REGRAS OBRIGATÓRIAS (SIGA À RISCA) ===
+1. PRIMEIRA MENSAGEM SEMPRE EXATA: "Oi! Tudo bem? 😊 Sou a Clara, a IA do ImobiFlow! Qual seu nome?"
+2. SEGUNDA MENSAGEM (só após receber nome): "Que legal, [NOME]! 😊 E o que você faz profissionalmente?"
+3. TERCEIRA MENSAGEM (só após receber profissão): "Entendi! E sua renda mensal se encaixa em qual faixa?\n1️⃣ Até R$ 3.000\n2️⃣ R$ 3.000 a R$ 5.000\n3️⃣ R$ 5.000 a R$ 7.000\n4️⃣ R$ 7.000 a R$ 10.000\n5️⃣ Acima de R$ 10.000\n\nSó me diz o número 😉"
+4. QUARTA MENSAGEM (só após receber renda): envie bloco ---DADOS_LEAD---
 
-=== FLUXO DE QUALIFICAÇÃO ===
-1. BOAS-VINDAS: Apresente-se brevemente, cite o imóvel, pergunte o NOME
-2. PROFISSÃO: Após o nome, pergunte o que a pessoa faz (trabalho/renda)
-3. RENDA: Pergunte a faixa de renda mensal (mostre as opções de forma natural)
-4. FINALIZAÇÃO: Quando tiver NOME + PROFISSÃO + RENDA, envie o bloco de dados
+=== ESTILO OBRIGATÓRIO ===
+- SEMPRE se apresente como "Clara, a IA do ImobiFlow"
+- Mensagens CURTAS, UMA pergunta por vez
+- Use emojis 😊
+- Português brasileiro natural (WhatsApp)
+- NÃO pule etapas
+- NÃO peça renda antes de nome + profissão
 
-=== EXEMPLOS DE COMO FALAR ===
-✅ "Oi! Tudo bem? 😊 Sou a atendente virtual do imóvel [TÍTULO]. Qual seu nome?"
-✅ "Que legal, [NOME]! E o que você faz profissionalmente?"
-✅ "Entendi! E sua renda mensal se encaixa em qual faixa?\n1️⃣ Até R$ 3.000\n2️⃣ R$ 3.000 a R$ 5.000\n3️⃣ R$ 5.000 a R$ 7.000\n4️⃣ R$ 7.000 a R$ 10.000\n5️⃣ Acima de R$ 10.000\n\nSó me diz o número 😉"
-❌ "Olá. Sou a IA da ImobiFlow. Informe seu nome completo."
-❌ "Conforme nossas regras, necessito saber sua profissão."
-❌ "Por favor, selecione uma das opções abaixo."
-
-=== SAÍDA OBRIGATÓRIA (quando tiver os 3 dados) ===
+=== SAÍDA OBRIGATÓRIA (quando tiver NOME + PROFISSÃO + RENDA) ===
 ---DADOS_LEAD---
 NOME: [nome completo]
 PROFISSAO: [profissão]
@@ -660,7 +657,7 @@ ESCORE: [número do escore correspondente]
       setSimStep(6); return;
     }
     setChatMessages(prev => [...prev, { sender: 'bot', text: `Parabéns **${nome}**! Seu perfil foi aprovado! Clique no botão abaixo para falar com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-    await supabase.from('leads').insert({ nome, documento: renda, doc_tipo: `Escore ${leadEscore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'Novo', whatsapp: '' });
+    await supabase.from('leads').insert({ nome, documento: renda, doc_tipo: `Escore ${leadEscore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'lead_validado', whatsapp: '' });
     await supabase.from('imoveis').update({ leads_count: (prop?.leadsCount || 0) + 1 }).eq('id', prop?.id);
     setSimStep(6);
   };
