@@ -464,8 +464,8 @@ INSTRUÇÕES:
         return;
       }
     }
-    setChatMessages([{ sender: 'bot', text: `Oi! Tudo bem?  Sou a atendente virtual do imóvel *${prop.title}*. Qual seu nome?`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-    setGroqHistory([{ role: 'assistant', content: `Oi! Tudo bem?  Sou a atendente virtual do imóvel *${prop.title}*. Qual seu nome?` }]);
+    setChatMessages([{ sender: 'bot', text: `Oi! Tudo bem? 😊 Sou a atendente virtual do imóvel *${prop.title}*. Qual seu nome?`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+    setGroqHistory([{ role: 'assistant', content: `Oi! Tudo bem? 😊 Sou a atendente virtual do imóvel *${prop.title}*. Qual seu nome?` }]);
     setSimStep(2);
   };
 
@@ -479,18 +479,18 @@ INSTRUÇÕES:
     if (simStep === 2) {
       setSimInputName(userMsg);
       setSimStep(3);
-      addBotMessage(`Que legal, **${userMsg}**!  E o que você faz profissionalmente?`, 1000);
+      addBotMessage(`Que legal, **${userMsg}**! 😊 E o que você faz profissionalmente?`, 1000);
     } else if (simStep === 3) {
       setSimInputProfession(userMsg);
       setSimStep(4);
       const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}. ${f.label}`).join('\n');
-      addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número `, 1000);
+      addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número 😉`, 1000);
     } else if (simStep === 4) {
       const index = parseInt(userMsg) - 1;
       const faixa = INCOME_FAIXAS[index];
       if (!faixa) {
         const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}. ${f.label}`).join('\n');
-        addBotMessage(`Opção inválida. Me diz o número da faixa, por favor `, 800);
+        addBotMessage(`Opção inválida. Me diz o número da faixa, por favor 😊`, 800);
         return;
       }
       const leadName = simInputName || 'Lead Simulado';
@@ -500,7 +500,7 @@ INSTRUÇÕES:
       setSimStep(5);
 
       if (!isQualified) {
-        addBotMessage(`Obrigado, **${leadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! `, 1000);
+        addBotMessage(`Obrigado, **${leadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! 🙏`, 1000);
         setTimeout(async () => {
           await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Inválido p/ Imóvel', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: 'Sistema (Desqualificado)', brokerCreci: '', stage: 'Perdido', whatsapp: '' });
           setSimStep(6);
@@ -510,9 +510,9 @@ INSTRUÇÕES:
         let assignedBroker;
         if (corretorProfile?.modo === 'solo') {
           assignedBroker = { id: corretorProfile.id, name: corretorProfile.nome, creci: corretorProfile.creci };
-          addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado `, 1000);
+          addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado ✅`, 1000);
           setTimeout(async () => {
-            addBotMessage(` **Lead Direcionado!**\nO lead foi registrado para o corretor **${corretorProfile.nome}** (${corretorProfile.creci}).`, 1000);
+            addBotMessage(`🎉 **Lead Direcionado!**\nO lead foi registrado para o corretor **${corretorProfile.nome}** (${corretorProfile.creci}).`, 1000);
             await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Regular', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: corretorProfile.nome, brokerCreci: corretorProfile.creci, corretorId: corretorProfile.id, stage: 'lead_validado', whatsapp: '' });
             await incrementPropertyLeads(selectedProperty?.id);
             setSimStep(6);
@@ -521,9 +521,9 @@ INSTRUÇÕES:
           const nextIdx = roundRobinIndex % (availableBrokers.length || 1);
           assignedBroker = availableBrokers[nextIdx] || { id: null, name: 'Equipe', creci: '' };
           setRoundRobinIndex(prev => prev + 1);
-          addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado `, 1000);
+          addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado ✅`, 1000);
           setTimeout(async () => {
-            addBotMessage(` **Atendimento Direcionado!**\nO corretor sorteado é **${assignedBroker.name}** (${assignedBroker.creci}).`, 1000);
+            addBotMessage(`🎉 **Atendimento Direcionado!**\nO corretor sorteado é **${assignedBroker.name}** (${assignedBroker.creci}).`, 1000);
             await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Regular', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: assignedBroker.name, brokerCreci: assignedBroker.creci || '', corretorId: assignedBroker.id, stage: 'lead_validado', whatsapp: '' });
             await incrementPropertyLeads(selectedProperty?.id);
             if (assignedBroker.id) {
@@ -580,7 +580,7 @@ INSTRUÇÕES:
       const brokerWa = prop?.brokerWhatsapp || '';
       addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado `);
       setTimeout(async () => {
-        setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. `, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+        setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
         await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'lead_validado', whatsapp: '' });
         await supabase.from('imoveis').update({ leads_count: (prop?.leadsCount || 0) + 1 }).eq('id', prop?.id);
         setSimStep(6);
@@ -624,7 +624,7 @@ INSTRUÇÕES:
       }
       addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado `);
       setTimeout(async () => {
-        setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. `, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+        setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
         await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'lead_validado', whatsapp: '' });
         await supabase.from('imoveis').update({ leads_count: (prop?.leadsCount || 0) + 1 }).eq('id', prop?.id);
         setSimStep(6);
@@ -753,8 +753,8 @@ INSTRUÇÕES:
                   <button className="chat-option-btn" onClick={() => { 
               setShowChatMenu(false); 
               if (chatMessages.length === 0) {
-                setChatMessages([{ sender: 'bot', text: `Oi! Tudo bem?  Sou a Clara, a IA do ImobiFlow! Qual seu nome?`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-                setGroqHistory([{ role: 'assistant', content: `Oi! Tudo bem?  Sou a Clara, a IA do ImobiFlow! Qual seu nome?` }]);
+                setChatMessages([{ sender: 'bot', text: `Oi! Tudo bem? 😊 Sou a Clara, a IA do ImobiFlow! Qual seu nome?`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+                setGroqHistory([{ role: 'assistant', content: `Oi! Tudo bem? 😊 Sou a Clara, a IA do ImobiFlow! Qual seu nome?` }]);
               }
             }}><span className="chat-option-icon">💬</span><span className="chat-option-label">Falar com Atendente</span><span className="chat-option-arrow">›</span></button>
                   <button className="chat-option-btn" onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Gostaria de agendar uma visita para o imóvel: ${property.title} - ${property.price}`)}`; window.open(wa, '_blank') || (location.href = wa); }}><span className="chat-option-icon">📅</span><span className="chat-option-label">Agendar Visita</span><span className="chat-option-arrow">›</span></button>
