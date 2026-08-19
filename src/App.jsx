@@ -588,74 +588,62 @@ INSTRUÇÕES:
       setIsTyping(false); return;
     }
 
-    // Groq flow
-    console.log('[Chat] Enviando para Groq...', { hasKey: !!GROQ_API_KEY, historyLen: groqHistory.length });
+    // Fluxo DETERMINÍSTICO local (garantido) - não depende do Groq seguir prompt
+    // Estado: chatMessages.length 1=apresentação, 2=nome recebido, 3=profissão recebida, 4=renda recebida
+    const msgCount = chatMessages.length;
+
+    if (msgCount === 1) {
+      // Usuário enviou nome
+      setPublicLeadName(userMsg);
+      addBotMessage(`Que legal, **${userMsg}**! 😊 E o que você faz profissionalmente?`);
+      setIsTyping(false); return;
+    }
+
+    if (msgCount === 2) {
+      // Usuário enviou profissão
+      setPublicLeadProfession(userMsg);
+      const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}️⃣ ${f.label}`).join('\n');
+      addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número 😉`);
+      setIsTyping(false); return;
+    }
+
+    if (msgCount === 3) {
+      // Usuário enviou número da faixa
+      const index = parseInt(userMsg) - 1;
+      const faixa = INCOME_FAIXAS[index];
+      if (!faixa) { addBotMessage(`Opção inválida. Me diz o número da faixa, por favor 😊`); setIsTyping(false); return; }
+      const minEscore = getMinEscore(prop?.rule);
+      const isQualified = faixa.escore >= minEscore;
+      if (!isQualified) {
+        addBotMessage(`Obrigado, **${publicLeadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! 🙏`);
+        setTimeout(async () => {
+          await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Inválido p/ Imóvel', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: 'Sistema (Desqualificado)', corretor_creci: '', estagio: 'Perdido', whatsapp: '' });
+          setSimStep(6);
+        }, 2000);
+        setIsTyping(false); return;
+      }
+      addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado ✅`);
+      setTimeout(async () => {
+        setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+        await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'lead_validado', whatsapp: '' });
+        await supabase.from('imoveis').update({ leads_count: (prop?.leadsCount || 0) + 1 }).eq('id', prop?.id);
+        setSimStep(6);
+      }, 1500);
+      setIsTyping(false); return;
+    }
+
+    // Fallback: se passou de 3 mensagens, usa Groq para conversa livre
+    console.log('[Chat] Enviando para Groq (conversa livre)...');
     const updatedHistory = [...groqHistory, { role: 'user', content: userMsg }];
     setGroqHistory(updatedHistory);
     const minEscore = getMinEscore(prop?.rule);
     const faixasStr = INCOME_FAIXAS.map(f => `- ${f.label}: "${f.value}" → Escore ${f.escore}`).join('\n');
-    const systemPrompt = `Você é a **Clara**, a IA do ImobiFlow. Seu papel é QUALIFICAR leads no WhatsApp.
-
-IMÓVEL: ${prop?.title}
-VALOR: ${prop?.price}
-REGRAS: ${prop?.rule} (escore mínimo: ${minEscore})
-
-FAIXAS DE RENDA:
-${faixasStr}
-
-=== REGRAS OBRIGATÓRIAS (SIGA À RISCA) ===
-1. PRIMEIRA MENSAGEM SEMPRE EXATA: "Oi! Tudo bem? 😊 Sou a Clara, a IA do ImobiFlow! Qual seu nome?"
-2. SEGUNDA MENSAGEM (só após receber nome): "Que legal, [NOME]! 😊 E o que você faz profissionalmente?"
-3. TERCEIRA MENSAGEM (só após receber profissão): "Entendi! E sua renda mensal se encaixa em qual faixa?\n1️⃣ Até R$ 3.000\n2️⃣ R$ 3.000 a R$ 5.000\n3️⃣ R$ 5.000 a R$ 7.000\n4️⃣ R$ 7.000 a R$ 10.000\n5️⃣ Acima de R$ 10.000\n\nSó me diz o número 😉"
-4. QUARTA MENSAGEM (só após receber renda): envie bloco ---DADOS_LEAD---
-
-=== ESTILO OBRIGATÓRIO ===
-- SEMPRE se apresente como "Clara, a IA do ImobiFlow"
-- Mensagens CURTAS, UMA pergunta por vez
-- Use emojis 😊
-- Português brasileiro natural (WhatsApp)
-- NÃO pule etapas
-- NÃO peça renda antes de nome + profissão
-
-=== SAÍDA OBRIGATÓRIA (quando tiver NOME + PROFISSÃO + RENDA) ===
----DADOS_LEAD---
-NOME: [nome completo]
-PROFISSAO: [profissão]
-RENDA: [valor exato da faixa, ex: "R$ 5.000 a R$ 7.000"]
-ESCORE: [número do escore correspondente]
----FIM_DADOS---`;
+    const systemPrompt = `Você é a Clara, a IA do ImobiFlow. O lead JÁ FOI QUALIFICADO. Converse naturalmente.`;
     const response = await groqChat(systemPrompt, updatedHistory);
-    console.log('[Chat] Resposta Groq:', response);
-    if (!response) { console.warn('[Chat] Groq retornou null'); setIsTyping(false); return; }
+    if (!response) { setIsTyping(false); return; }
     setIsTyping(false);
-    const dataMatch = response.match(/---DADOS_LEAD---\n([\s\S]*?)---FIM_DADOS---/);
-    if (!dataMatch) {
-      setChatMessages(prev => [...prev, { sender: 'bot', text: response, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-      setGroqHistory(prev => [...prev, { role: 'assistant', content: response }]);
-      return;
-    }
-    const cleanResponse = response.replace(/---DADOS_LEAD---[\s\S]*?---FIM_DADOS---/, '').trim();
-    if (cleanResponse) {
-      setChatMessages(prev => [...prev, { sender: 'bot', text: cleanResponse, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-      setGroqHistory(prev => [...prev, { role: 'assistant', content: cleanResponse }]);
-    }
-    const block = dataMatch[1];
-    const nome = block.match(/NOME:\s*(.+)/)?.[1]?.trim();
-    const profissao = block.match(/PROFISSAO:\s*(.+)/)?.[1]?.trim() || '';
-    const renda = block.match(/RENDA:\s*(.+)/)?.[1]?.trim();
-    const escoreStr = block.match(/ESCORE:\s*(\d+)/)?.[1];
-    if (!nome || !renda || !escoreStr) return;
-    const leadEscore = parseInt(escoreStr);
-    const isQualified = leadEscore >= minEscore;
-    if (!isQualified) {
-      setChatMessages(prev => [...prev, { sender: 'bot', text: `Infelizmente seu perfil não atende aos critérios de renda para este imóvel. Agradecemos pelo interesse!`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-      await supabase.from('leads').insert({ nome, documento: renda, doc_tipo: `Escore ${leadEscore}`, doc_status: 'Inválido p/ Imóvel', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: 'Sistema (Desqualificado)', corretor_creci: '', estagio: 'Perdido', whatsapp: '' });
-      setSimStep(6); return;
-    }
-    setChatMessages(prev => [...prev, { sender: 'bot', text: `Parabéns **${nome}**! Seu perfil foi aprovado! Clique no botão abaixo para falar com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-    await supabase.from('leads').insert({ nome, documento: renda, doc_tipo: `Escore ${leadEscore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'lead_validado', whatsapp: '' });
-    await supabase.from('imoveis').update({ leads_count: (prop?.leadsCount || 0) + 1 }).eq('id', prop?.id);
-    setSimStep(6);
+    setChatMessages(prev => [...prev, { sender: 'bot', text: response, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+    setGroqHistory(prev => [...prev, { role: 'assistant', content: response }]);
   };
 
   // ===== LEGAL PAGES =====
