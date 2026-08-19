@@ -49,21 +49,21 @@ function getMinEscore(rule) {
 }
 
 async function groqChat(systemPrompt, messages) {
-  if (!GROQ_API_KEY) return null;
+  if (!GROQ_API_KEY) { console.warn('[Groq] API key não configurada'); return null; }
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'llama-3.1-70b-versatile',
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
         temperature: 0.7, max_tokens: 500
       })
     });
-    if (!res.ok) return null;
+    if (!res.ok) { console.error('[Groq] Erro HTTP:', res.status, await res.text()); return null; }
     const data = await res.json();
     return data.choices?.[0]?.message?.content || null;
-  } catch { return null; }
+  } catch (e) { console.error('[Groq] Erro:', e); return null; }
 }
 
 // ===== MAIN APP =====
@@ -589,6 +589,7 @@ INSTRUÇÕES:
     }
 
     // Groq flow
+    console.log('[Chat] Enviando para Groq...', { hasKey: !!GROQ_API_KEY, historyLen: groqHistory.length });
     const updatedHistory = [...groqHistory, { role: 'user', content: userMsg }];
     setGroqHistory(updatedHistory);
     const minEscore = getMinEscore(prop?.rule);
@@ -631,7 +632,8 @@ RENDA: [valor exato da faixa, ex: "R$ 5.000 a R$ 7.000"]
 ESCORE: [número do escore correspondente]
 ---FIM_DADOS---`;
     const response = await groqChat(systemPrompt, updatedHistory);
-    if (!response) { setIsTyping(false); return; }
+    console.log('[Chat] Resposta Groq:', response);
+    if (!response) { console.warn('[Chat] Groq retornou null'); setIsTyping(false); return; }
     setIsTyping(false);
     const dataMatch = response.match(/---DADOS_LEAD---\n([\s\S]*?)---FIM_DADOS---/);
     if (!dataMatch) {
