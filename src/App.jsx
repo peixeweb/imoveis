@@ -513,7 +513,7 @@ INSTRUÇÕES:
           addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado ✅`, 1000);
           setTimeout(async () => {
             addBotMessage(`🎉 **Lead Direcionado!**\nO lead foi registrado para o corretor **${corretorProfile.nome}** (${corretorProfile.creci}).`, 1000);
-            await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Regular', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: corretorProfile.nome, brokerCreci: corretorProfile.creci, corretorId: corretorProfile.id, stage: 'Novo', whatsapp: '' });
+            await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Regular', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: corretorProfile.nome, brokerCreci: corretorProfile.creci, corretorId: corretorProfile.id, stage: 'lead_validado', whatsapp: '' });
             await incrementPropertyLeads(selectedProperty?.id);
             setSimStep(6);
           }, 2000);
@@ -524,7 +524,7 @@ INSTRUÇÕES:
           addBotMessage(`Perfeito! **${leadName}**, seu perfil foi aprovado ✅`, 1000);
           setTimeout(async () => {
             addBotMessage(`🎉 **Atendimento Direcionado!**\nO corretor sorteado é **${assignedBroker.name}** (${assignedBroker.creci}).`, 1000);
-            await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Regular', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: assignedBroker.name, brokerCreci: assignedBroker.creci || '', corretorId: assignedBroker.id, stage: 'Novo', whatsapp: '' });
+            await saveLead({ name: leadName, document: faixa.value, docType: `Escore ${faixa.escore}`, docStatus: 'Regular', propertyName: selectedProperty?.title || '', propertyId: selectedProperty?.id, brokerName: assignedBroker.name, brokerCreci: assignedBroker.creci || '', corretorId: assignedBroker.id, stage: 'lead_validado', whatsapp: '' });
             await incrementPropertyLeads(selectedProperty?.id);
             if (assignedBroker.id) {
               await supabase.from('corretores').update({ leads_count: (assignedBroker.leadsCount || 0) + 1 }).eq('id', assignedBroker.id);
@@ -1264,7 +1264,7 @@ ESCORE: [número do escore correspondente]
             <div className="header-row"><div className="page-title"><h1>Pipeline Kanban Integrado</h1><p>Gerencie o funil de vendas dos leads.</p></div></div>
             <div className="kanban-board">
               {[
-                { stage: 'Novo', color: '#3b82f6', nextStage: 'Em Atendimento', nextLabel: 'Atender' },
+                { stage: 'lead_validado', color: '#3b82f6', nextStage: 'Em Atendimento', nextLabel: 'Atender' },
                 { stage: 'Em Atendimento', color: '#ea580c', nextStage: 'Proposta', nextLabel: 'Proposta', prevStage: 'Novo' },
                 { stage: 'Proposta', color: '#f59e0b', nextStage: 'Fechado', nextLabel: 'Fechar Venda!', prevStage: 'Em Atendimento', lostStage: 'Perdido' },
                 { stage: 'Fechado', color: '#10b981', prevStage: 'Proposta' },
