@@ -552,11 +552,7 @@ INSTRUÇÕES:
     const prop = publicProperty;
 
     if (!GROQ_API_KEY) {
-      // Local fallback - primeira mensagem deve vir do bot (Clara se apresentando)
-      if (chatMessages.length === 0) {
-        addBotMessage(`Oi! Tudo bem? 😊 Sou a Clara, a IA do ImobiFlow! Qual seu nome?`);
-        setIsTyping(false); return;
-      }
+      // Local fallback
       if (!publicLeadName) {
         setPublicLeadName(userMsg);
         addBotMessage(`Que legal, **${userMsg}**! 😊 E o que você faz profissionalmente?`);
@@ -766,7 +762,13 @@ ESCORE: [número do escore correspondente]
                 </div>
                 <div className="chat-menu-body">
                   <p style={{ fontSize: '12px', color: '#8696a0', padding: '0 4px 8px', margin: 0, lineHeight: 1.4 }}>Olá! Como podemos ajudar você com o imóvel <strong style={{ color: '#e0e0e0' }}>{property.title}</strong>?</p>
-                  <button className="chat-option-btn" onClick={() => { if (simStep === 0) handleStartSimChat(); setShowChatMenu(false); }}><span className="chat-option-icon">💬</span><span className="chat-option-label">Falar com Atendente</span><span className="chat-option-arrow">›</span></button>
+                  <button className="chat-option-btn" onClick={() => { 
+              setShowChatMenu(false); 
+              if (chatMessages.length === 0) {
+                setChatMessages([{ sender: 'bot', text: `Oi! Tudo bem? 😊 Sou a Clara, a IA do ImobiFlow! Qual seu nome?`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+                setGroqHistory([{ role: 'assistant', content: `Oi! Tudo bem? 😊 Sou a Clara, a IA do ImobiFlow! Qual seu nome?` }]);
+              }
+            }}><span className="chat-option-icon">💬</span><span className="chat-option-label">Falar com Atendente</span><span className="chat-option-arrow">›</span></button>
                   <button className="chat-option-btn" onClick={() => { const wa = `https://wa.me/${brokerWa}?text=${encodeURIComponent(`Olá! Gostaria de agendar uma visita para o imóvel: ${property.title} - ${property.price}`)}`; window.open(wa, '_blank') || (location.href = wa); }}><span className="chat-option-icon">📅</span><span className="chat-option-label">Agendar Visita</span><span className="chat-option-arrow">›</span></button>
                   <button className="chat-option-btn chat-option-btn--sair" onClick={() => setChatOpen(false)}><span className="chat-option-icon">🚪</span><span className="chat-option-label">Sair</span></button>
                 </div>
