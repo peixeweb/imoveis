@@ -55,7 +55,7 @@ async function groqChat(systemPrompt, messages) {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'mixtral-8x7b-32768',
+        model: 'llama-3.1-8b-instant',
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
         temperature: 0.7, max_tokens: 500
       })
