@@ -5,7 +5,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-export async function uploadPropertyImages(files, propertyId) {
+export async function uploadPropertyImages(files, propertyId, ratios = []) {
   const uploaded = [];
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -17,7 +17,7 @@ export async function uploadPropertyImages(files, propertyId) {
     });
     if (error) throw error;
     const { data: { publicUrl } } = supabase.storage.from('imoveis').getPublicUrl(data.path);
-    uploaded.push({ url: publicUrl, ratio: '1:1' });
+    uploaded.push({ url: publicUrl, ratio: ratios[i] || '1:1' });
   }
   return uploaded;
 }

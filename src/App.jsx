@@ -430,8 +430,9 @@ export default function App() {
     if (pendingImageFiles.length > 0) {
       try {
         const filesToUpload = pendingImageFiles.map(p => p.file);
-        console.log('[handleCreateProperty] Fazendo upload de', filesToUpload.length, 'arquivos...');
-        const uploaded = await uploadPropertyImages(filesToUpload, data.id);
+        const ratiosToUpload = pendingImageFiles.map(p => p.ratio);
+        console.log('[handleCreateProperty] Fazendo upload de', filesToUpload.length, 'arquivos...', ratiosToUpload);
+        const uploaded = await uploadPropertyImages(filesToUpload, data.id, ratiosToUpload);
         finalImages = uploaded;
         console.log('[handleCreateProperty] Upload OK, URLs:', uploaded.map(u => u.url));
         // Update property with permanent URLs
@@ -760,20 +761,23 @@ INSTRUÇÕES:
             <p style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}>{property.location}</p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '24px 16px', background: 'transparent' }}>
-            {(property.images?.length > 0 ? property.images : [{ url: property.image, ratio: '1:1' }]).map((img, idx) => (
-              <div key={idx} style={{ width: '100%', maxWidth: '400px', aspectRatio: img.ratio === '9:16' ? '9 / 16' : '4 / 3', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', background: 'white', position: 'relative' }}>
-                <img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                {property.brokerName && (
-                  <div style={{ position: 'absolute', bottom: '0', left: '0', right: '0', background: 'linear-gradient(transparent, rgba(0,0,0,0.85))', padding: '32px 16px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #2563eb, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>{property.brokerName.charAt(0)}</div>
-                    <div>
-                      <div style={{ color: 'white', fontWeight: 600, fontSize: '13px' }}>{property.brokerName}</div>
-                      <div style={{ color: '#94a3b8', fontSize: '11px' }}>{property.brokerCreci}</div>
-                    </div>
+            {(property.images?.length > 0 ? property.images : [{ url: property.image, ratio: '1:1' }]).map((img, idx) => {
+                const ar = img.ratio === '9:16' ? '9 / 16' : img.ratio === '1:1' ? '1 / 1' : '4 / 3';
+                return (
+                  <div key={idx} style={{ width: '100%', maxWidth: '400px', aspectRatio: ar, borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', background: 'white', position: 'relative' }}>
+                    <img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                    {property.brokerName && (
+                      <div style={{ position: 'absolute', bottom: '0', left: '0', right: '0', background: 'linear-gradient(transparent, rgba(0,0,0,0.85))', padding: '32px 16px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #2563eb, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>{property.brokerName.charAt(0)}</div>
+                        <div>
+                          <div style={{ color: 'white', fontWeight: 600, fontSize: '13px' }}>{property.brokerName}</div>
+                          <div style={{ color: '#94a3b8', fontSize: '11px' }}>{property.brokerCreci}</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+                );
+              })}
           </div>
           <div style={{ padding: '24px 16px', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', margin: '0 16px', borderRadius: '12px', marginTop: '-8px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>{property.price.startsWith('R$') ? property.price : `R$ ${property.price}`}</div>
@@ -1385,12 +1389,15 @@ INSTRUÇÕES:
                   <div className="preview-body">
                     <div className="landing-hero"><h1>Oportunidade Única</h1><p>Confira os detalhes e fale diretamente com o corretor.</p></div>
                     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#f8fafc' }}>
-                      {selectedProperty?.images?.length > 0 ? selectedProperty.images.map((img, idx) => (
-                        <div key={idx} style={{ width: '100%', maxWidth: '280px', aspectRatio: img.ratio === '1:1' ? '1/1' : '9/16', borderRadius: '8px', overflow: 'hidden', margin: '0 auto', position: 'relative', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
-                          <img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                          {selectedProperty.brokerName && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.8))', padding: '20px 10px 8px', color: 'white', fontSize: '11px' }}><div style={{ fontWeight: 600 }}>{selectedProperty.brokerName}</div><div style={{ opacity: 0.7, fontSize: '10px' }}>{selectedProperty.brokerCreci}</div></div>}
-                        </div>
-                      )) : <div style={{ width: '280px', height: '200px', borderRadius: '8px', overflow: 'hidden', margin: '0 auto' }}><img src={selectedProperty?.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /></div>}
+                      {selectedProperty?.images?.length > 0 ? selectedProperty.images.map((img, idx) => {
+                        const ar = img.ratio === '9:16' ? '9 / 16' : img.ratio === '1:1' ? '1 / 1' : '4 / 3';
+                        return (
+                          <div key={idx} style={{ width: '100%', maxWidth: '280px', aspectRatio: ar, borderRadius: '8px', overflow: 'hidden', margin: '0 auto', position: 'relative', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
+                            <img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                            {selectedProperty.brokerName && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.8))', padding: '20px 10px 8px', color: 'white', fontSize: '11px' }}><div style={{ fontWeight: 600 }}>{selectedProperty.brokerName}</div><div style={{ opacity: 0.7, fontSize: '10px' }}>{selectedProperty.brokerCreci}</div></div>}
+                          </div>
+                        );
+                      }) : <div style={{ width: '280px', height: '200px', borderRadius: '8px', overflow: 'hidden', margin: '0 auto' }}><img src={selectedProperty?.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /></div>}
                     </div>
                     <div className="landing-info">
                       <h2 style={{ color: '#0f172a', border: 'none', padding: 0, margin: 0, fontSize: '18px' }}>{selectedProperty?.title}</h2>
