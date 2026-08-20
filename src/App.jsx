@@ -379,6 +379,8 @@ export default function App() {
     e.preventDefault();
     if (!newProperty.title || !newProperty.price) return;
 
+    console.log('[handleCreateProperty] Iniciando cadastro:', { title: newProperty.title, modo: corretorProfile.modo, corretorId: corretorProfile.id, imagesCount: newProperty.images.length, pendingFilesCount: pendingImageFiles.length });
+
     let cId = corretorProfile.id;
     let cNome = corretorProfile.nome;
     let cCreci = corretorProfile.creci;
@@ -387,6 +389,9 @@ export default function App() {
     if (corretorProfile.modo === 'team' && newProperty.brokerName) {
       const found = brokers.find(b => b.name === newProperty.brokerName);
       if (found) { cId = found.id; cNome = found.name; cCreci = found.creci; cWhatsapp = found.whatsapp; }
+      console.log('[handleCreateProperty] Modo team - corretor selecionado:', { cId, cNome });
+    } else {
+      console.log('[handleCreateProperty] Modo solo - usando corretor logado:', { cId });
     }
 
     const { data, error } = await supabase.from('imoveis').insert({
@@ -399,24 +404,30 @@ export default function App() {
       leads_count: 0,
     }).select().single();
 
-    if (error) { alert('Erro ao cadastrar imóvel: ' + error.message); return; }
+    if (error) { console.error('[handleCreateProperty] Erro no insert:', error); alert('Erro ao cadastrar imóvel: ' + error.message); return; }
+
+    console.log('[handleCreateProperty] Insert OK, data.id:', data.id, 'imagens no banco:', data.imagens);
 
     // Upload images to Supabase Storage if there are pending files
     let finalImages = newProperty.images;
     if (pendingImageFiles.length > 0) {
       try {
         const filesToUpload = pendingImageFiles.map(p => p.file);
+        console.log('[handleCreateProperty] Fazendo upload de', filesToUpload.length, 'arquivos...');
         const uploaded = await uploadPropertyImages(filesToUpload, data.id);
         finalImages = uploaded;
+        console.log('[handleCreateProperty] Upload OK, URLs:', uploaded.map(u => u.url));
         // Update property with permanent URLs
         await supabase.from('imoveis').update({ imagens: uploaded }).eq('id', data.id);
+        console.log('[handleCreateProperty] Update no banco OK');
       } catch (uploadError) {
-        console.error('Erro ao fazer upload das imagens:', uploadError);
+        console.error('[handleCreateProperty] Erro no upload:', uploadError);
         // Keep blob URLs as fallback
       }
     }
 
     const mapped = mapProperty({ ...data, imagens: finalImages });
+    console.log('[handleCreateProperty] Mapped property:', { id: mapped.id, title: mapped.title, images: mapped.images, image: mapped.image });
     setProperties(prev => [mapped, ...prev]);
     setLastCreatedProperty(mapped);
     setNewProperty({ title: '', price: '', location: '', mapsLink: '', specs: '', rule: 'R$ 3.001 a R$ 5.000', images: [], brokerName: '', brokerCreci: '', brokerWhatsapp: '' });
