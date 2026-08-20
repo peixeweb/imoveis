@@ -24,7 +24,7 @@ import {
   ShieldBan,
   ShieldCheck,
 } from 'lucide-react';
-import { supabase } from './lib/supabase';
+import { supabase, uploadPropertyImages } from './lib/supabase';
 import useAuth from './hooks/useAuth';
 import useData, { mapProperty, mapLead, mapBroker } from './hooks/useData';
 import PrivacyPolicy from './components/PrivacyPolicy';
@@ -151,6 +151,7 @@ export default function App() {
   const [tempImageFile, setTempImageFile] = useState(null);
   const [tempImageRatio, setTempImageRatio] = useState('1:1');
   const [tempImagePreview, setTempImagePreview] = useState('');
+  const [pendingImageFiles, setPendingImageFiles] = useState([]);
 
   // ===== EFFECTS =====
   useEffect(() => {
@@ -159,7 +160,7 @@ export default function App() {
 
   useEffect(() => { setSignupEmail(''); setSignupPassword(''); setSignupNome(''); setSignupCreci(''); setSignupWhatsapp(''); setSignupEquipeNome(''); setLoginEmail(''); setLoginPassword(''); }, [authScreen]);
 
-  useEffect(() => { if (activeTab === 'novo_imovel') setNewProperty({ title: '', price: '', location: '', mapsLink: '', specs: '', rule: 'R$ 3.001 a R$ 5.000', images: [], brokerName: '', brokerCreci: '', brokerWhatsapp: '' }); }, [activeTab]);
+  useEffect(() => { if (activeTab === 'novo_imovel') { setNewProperty({ title: '', price: '', location: '', mapsLink: '', specs: '', rule: 'R$ 3.001 a R$ 5.000', images: [], brokerName: '', brokerCreci: '', brokerWhatsapp: '' }); setPendingImageFiles([]); } }, [activeTab]);
 
   useEffect(() => {
     // Public landing page - load property without auth
@@ -361,7 +362,8 @@ export default function App() {
   };
 
   const handleAddTempImage = () => {
-    if (!tempImagePreview) return;
+    if (!tempImagePreview || !tempImageFile) return;
+    setPendingImageFiles(prev => [...prev, { file: tempImageFile, ratio: tempImageRatio }]);
     setNewProperty(prev => ({ ...prev, images: [...prev.images, { url: tempImagePreview, ratio: tempImageRatio }] }));
     setTempImageFile(null); setTempImagePreview('');
     const fi = document.getElementById('property-image-file-input');
@@ -370,6 +372,7 @@ export default function App() {
 
   const handleRemoveImage = (idx) => {
     setNewProperty(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }));
+    setPendingImageFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
   const handleCreateProperty = async (e) => {
@@ -398,10 +401,26 @@ export default function App() {
 
     if (error) { alert('Erro ao cadastrar imóvel: ' + error.message); return; }
 
-    const mapped = mapProperty(data);
+    // Upload images to Supabase Storage if there are pending files
+    let finalImages = newProperty.images;
+    if (pendingImageFiles.length > 0) {
+      try {
+        const filesToUpload = pendingImageFiles.map(p => p.file);
+        const uploaded = await uploadPropertyImages(filesToUpload, data.id);
+        finalImages = uploaded;
+        // Update property with permanent URLs
+        await supabase.from('imoveis').update({ imagens: uploaded }).eq('id', data.id);
+      } catch (uploadError) {
+        console.error('Erro ao fazer upload das imagens:', uploadError);
+        // Keep blob URLs as fallback
+      }
+    }
+
+    const mapped = mapProperty({ ...data, imagens: finalImages });
     setProperties(prev => [mapped, ...prev]);
     setLastCreatedProperty(mapped);
     setNewProperty({ title: '', price: '', location: '', mapsLink: '', specs: '', rule: 'R$ 3.001 a R$ 5.000', images: [], brokerName: '', brokerCreci: '', brokerWhatsapp: '' });
+    setPendingImageFiles([]);
     setActiveTab('landing_sucesso');
   };
 
