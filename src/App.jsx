@@ -483,13 +483,13 @@ INSTRUÇÕES:
     } else if (simStep === 3) {
       setSimInputProfession(userMsg);
       setSimStep(4);
-      const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}. ${f.label}`).join('\n');
+      const faixasTexto = INCOME_FAIXAS.map((f, i) => `${['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'][i]} ${f.label}`).join('\n');
       addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número 😉`, 1000);
     } else if (simStep === 4) {
       const index = parseInt(userMsg) - 1;
       const faixa = INCOME_FAIXAS[index];
       if (!faixa) {
-        const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}. ${f.label}`).join('\n');
+        const faixasTexto = INCOME_FAIXAS.map((f, i) => `${['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'][i]} ${f.label}`).join('\n');
         addBotMessage(`Opção inválida. Me diz o número da faixa, por favor 😊`, 800);
         return;
       }
@@ -560,7 +560,7 @@ INSTRUÇÕES:
       }
       if (!publicLeadProfession) {
         setPublicLeadProfession(userMsg);
-        const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}. ${f.label}`).join('\n');
+        const faixasTexto = INCOME_FAIXAS.map((f, i) => `${['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'][i]} ${f.label}`).join('\n');
         addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número `);
         setIsTyping(false); return;
       }
@@ -602,7 +602,7 @@ INSTRUÇÕES:
     if (msgCount === 2) {
       // Usuário enviou profissão
       setPublicLeadProfession(userMsg);
-      const faixasTexto = INCOME_FAIXAS.map((f, i) => `${i + 1}. ${f.label}`).join('\n');
+      const faixasTexto = INCOME_FAIXAS.map((f, i) => `${['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'][i]} ${f.label}`).join('\n');
       addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número `);
       setIsTyping(false); return;
     }
@@ -675,9 +675,12 @@ INSTRUÇÕES:
         <SEOHead property={property} title={property.title} />
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(248, 250, 252, 0.85)', zIndex: 0 }} />
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'auto' }}>
-          <div style={{ background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(8px)', color: 'white', padding: '32px 16px 24px', textAlign: 'center' }}>
-            <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>{property.title}</h1>
-            <p style={{ fontSize: '13px', opacity: 0.7, margin: 0 }}>{property.location}</p>
+          <div style={{ background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(8px)', color: 'white', padding: '24px 16px', textAlign: 'center', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '16px', left: '16px' }}>
+              <img src="/logo.webp" alt="Logo" style={{ height: '40px', objectFit: 'contain' }} />
+            </div>
+            <h1 style={{ fontSize: '26px', fontWeight: 800, margin: '24px 0 6px', color: '#60a5fa', textShadow: '0 2px 4px rgba(0,0,0,0.5)', letterSpacing: '-0.5px' }}>{property.title}</h1>
+            <p style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}>{property.location}</p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '24px 16px', background: 'transparent' }}>
             {(property.images?.length > 0 ? property.images : [{ url: property.image, ratio: '1:1' }]).map((img, idx) => (
