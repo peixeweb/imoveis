@@ -102,6 +102,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [lastCreatedProperty, setLastCreatedProperty] = useState(null);
+  const [isSubmittingProperty, setIsSubmittingProperty] = useState(false);
 
   // --- Public view & Legal Pages ---
   const urlParams = new URLSearchParams(window.location.search);
@@ -377,7 +378,10 @@ export default function App() {
 
   const handleCreateProperty = async (e) => {
     e.preventDefault();
+    if (isSubmittingProperty) return;
     if (!newProperty.title || !newProperty.price) return;
+
+    setIsSubmittingProperty(true);
 
     console.log('[handleCreateProperty] Iniciando cadastro:', { title: newProperty.title, modo: corretorProfile.modo, corretorId: corretorProfile.id, imagesCount: newProperty.images.length, pendingFilesCount: pendingImageFiles.length });
 
@@ -404,7 +408,7 @@ export default function App() {
       leads_count: 0,
     }).select().single();
 
-    if (error) { console.error('[handleCreateProperty] Erro no insert:', error); alert('Erro ao cadastrar imóvel: ' + error.message); return; }
+    if (error) { console.error('[handleCreateProperty] Erro no insert:', error); alert('Erro ao cadastrar imóvel: ' + error.message); setIsSubmittingProperty(false); return; }
 
     console.log('[handleCreateProperty] Insert OK, data.id:', data.id, 'imagens no banco:', data.imagens);
 
@@ -432,7 +436,14 @@ export default function App() {
     setLastCreatedProperty(mapped);
     setNewProperty({ title: '', price: '', location: '', mapsLink: '', specs: '', rule: 'R$ 3.001 a R$ 5.000', images: [], brokerName: '', brokerCreci: '', brokerWhatsapp: '' });
     setPendingImageFiles([]);
+    
+    // Refresh do banco para garantir consistência
+    if (corretorProfile) {
+      refreshData(corretorProfile);
+    }
+    
     setActiveTab('landing_sucesso');
+    setIsSubmittingProperty(false);
   };
 
   const handleDeleteProperty = async (id) => {
@@ -1226,7 +1237,7 @@ INSTRUÇÕES:
                   {newProperty.images.length > 0 && <div style={{ marginTop: '16px' }}><p style={{ fontSize: '12px', fontWeight: 600, color: 'white', marginBottom: '8px' }}>Fotos Adicionadas ({newProperty.images.length})</p><div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>{newProperty.images.map((img, idx) => <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #1f2937' }}><img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /><button type="button" onClick={() => handleRemoveImage(idx)} style={{ position: 'absolute', top: '2px', right: '2px', backgroundColor: 'rgba(239,68,68,0.9)', border: 'none', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>✕</button></div>)}</div></div>}
                 </div>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Salvar Imóvel</button>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} disabled={isSubmittingProperty}>{isSubmittingProperty ? 'Salvando...' : 'Salvar Imóvel'}</button>
                   <button type="button" className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setActiveTab('imoveis')}>Cancelar</button>
                 </div>
               </form>
