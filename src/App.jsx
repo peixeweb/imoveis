@@ -231,6 +231,12 @@ export default function App() {
         setLeads([]);
         setBrokers([]);
       }
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        if (session?.user) {
+          setCurrentUser(session.user);
+          loadCorretorProfile(session.user.id);
+        }
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -353,7 +359,14 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    if (window.confirm('Deseja sair da plataforma?')) await supabase.auth.signOut();
+    if (window.confirm('Deseja sair da plataforma?')) {
+      setProperties([]);
+      setLeads([]);
+      setBrokers([]);
+      setLastCreatedProperty(null);
+      setPendingImageFiles([]);
+      await supabase.auth.signOut();
+    }
   };
 
   // ===== PROPERTY HANDLERS =====
