@@ -170,14 +170,36 @@ export default function App() {
           setPublicLoading(false);
         });
       } else if (activeSlug) {
-        supabase.from('imoveis').select('*').then(({ data }) => {
-          if (data && data.length > 0) {
-            const mappedList = data.map(mapProperty);
-            const found = findPropertyBySlug(mappedList, activeSlug);
-            if (found) setPublicProperty(found);
-          }
-          setPublicLoading(false);
-        });
+        const slugParts = activeSlug.split('-');
+        const possibleId = slugParts[slugParts.length - 1];
+        const isShortId = possibleId && possibleId.length === 8 && /^[a-z0-9]{8}$/.test(possibleId);
+
+        if (isShortId) {
+          supabase.from('imoveis').select('*').eq('id', possibleId).single().then(({ data }) => {
+            if (data) {
+              setPublicProperty(mapProperty(data));
+              setPublicLoading(false);
+              return;
+            }
+            supabase.from('imoveis').select('*').then(({ data: allData }) => {
+              if (allData && allData.length > 0) {
+                const mappedList = allData.map(mapProperty);
+                const found = findPropertyBySlug(mappedList, activeSlug);
+                if (found) setPublicProperty(found);
+              }
+              setPublicLoading(false);
+            });
+          });
+        } else {
+          supabase.from('imoveis').select('*').then(({ data }) => {
+            if (data && data.length > 0) {
+              const mappedList = data.map(mapProperty);
+              const found = findPropertyBySlug(mappedList, activeSlug);
+              if (found) setPublicProperty(found);
+            }
+            setPublicLoading(false);
+          });
+        }
       } else {
         setPublicLoading(false);
       }
@@ -354,13 +376,14 @@ export default function App() {
     e.preventDefault();
     if (!newProperty.title || !newProperty.price) return;
 
+    let cId = corretorProfile.id;
     let cNome = corretorProfile.nome;
     let cCreci = corretorProfile.creci;
     let cWhatsapp = corretorProfile.whatsapp;
 
     if (corretorProfile.modo === 'team' && newProperty.brokerName) {
       const found = brokers.find(b => b.name === newProperty.brokerName);
-      if (found) { cNome = found.name; cCreci = found.creci; cWhatsapp = found.whatsapp; }
+      if (found) { cId = found.id; cNome = found.name; cCreci = found.creci; cWhatsapp = found.whatsapp; }
     }
 
     const { data, error } = await supabase.from('imoveis').insert({
@@ -368,7 +391,7 @@ export default function App() {
       localizacao: newProperty.location, maps_link: newProperty.mapsLink,
       specs: newProperty.specs, regra: newProperty.rule,
       imagens: newProperty.images,
-      corretor_id: corretorProfile.id, corretor_nome: cNome, corretor_creci: cCreci, corretor_whatsapp: cWhatsapp,
+      corretor_id: cId, corretor_nome: cNome, corretor_creci: cCreci, corretor_whatsapp: cWhatsapp,
       equipe_id: corretorProfile.equipe_id || null,
       leads_count: 0,
     }).select().single();

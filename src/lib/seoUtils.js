@@ -19,10 +19,11 @@ export function getPropertySEOSlug(property) {
   if (!property) return '';
   const titleSlug = slugify(property.title || property.titulo || 'imovel');
   const locationSlug = slugify(property.location || property.localizacao || '');
+  const shortId = property.id ? property.id.slice(0, 8) : '';
   if (locationSlug) {
-    return `${titleSlug}-em-${locationSlug}`;
+    return `${titleSlug}-em-${locationSlug}-${shortId}`;
   }
-  return titleSlug;
+  return `${titleSlug}-${shortId}`;
 }
 
 export function getPropertyPublicURL(property) {
