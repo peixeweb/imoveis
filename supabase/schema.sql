@@ -87,7 +87,7 @@ CREATE POLICY "equipes_select_own" ON equipes
   );
 
 CREATE POLICY "equipes_insert_admin" ON equipes
-  FOR INSERT WITH CHECK (admin_user_id = auth.uid());
+  FOR INSERT WITH CHECK (true);
 
 CREATE POLICY "equipes_update_admin" ON equipes
   FOR UPDATE USING (admin_user_id = auth.uid());

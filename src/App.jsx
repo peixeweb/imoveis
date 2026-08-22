@@ -55,7 +55,7 @@ async function groqChat(systemPrompt, messages) {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'groq/compound',
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
         temperature: 0.7, max_tokens: 500
       })
@@ -141,6 +141,7 @@ export default function App() {
   const [groqHistory, setGroqHistory] = useState([]);
   const [publicLeadName, setPublicLeadName] = useState('');
   const [publicLeadProfession, setPublicLeadProfession] = useState('');
+  const [publicLeadIncome, setPublicLeadIncome] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
   const [showChatMenu, setShowChatMenu] = useState(true);
 
@@ -149,9 +150,7 @@ export default function App() {
     title: '', price: '', location: '', mapsLink: '', specs: '',
     rule: 'R$ 3.001 a R$ 5.000', images: [], brokerName: '', brokerCreci: '', brokerWhatsapp: ''
   });
-  const [tempImageFile, setTempImageFile] = useState(null);
   const [tempImageRatio, setTempImageRatio] = useState('1:1');
-  const [tempImagePreview, setTempImagePreview] = useState('');
   const [pendingImageFiles, setPendingImageFiles] = useState([]);
 
   // ===== EFFECTS =====
@@ -177,9 +176,9 @@ export default function App() {
         const isShortId = possibleId && possibleId.length === 8 && /^[a-z0-9]{8}$/.test(possibleId);
 
         if (isShortId) {
-          supabase.from('imoveis').select('*').eq('id', possibleId).single().then(({ data }) => {
-            if (data) {
-              setPublicProperty(mapProperty(data));
+          supabase.from('imoveis').select('*').like('id', `${possibleId}%`).limit(1).then(({ data }) => {
+            if (data && data.length > 0) {
+              setPublicProperty(mapProperty(data[0]));
               setPublicLoading(false);
               return;
             }
@@ -372,16 +371,28 @@ export default function App() {
   // ===== PROPERTY HANDLERS =====
   const handleTempImageUploadChange = (e) => {
     const file = e.target.files[0];
-    if (file) { setTempImageFile(file); setTempImagePreview(URL.createObjectURL(file)); }
+    if (file) {
+      const preview = URL.createObjectURL(file);
+      // Adiciona automaticamente à lista de fotos
+      setPendingImageFiles(prev => [...prev, { file, ratio: tempImageRatio }]);
+      setNewProperty(prev => ({ ...prev, images: [...prev.images, { url: preview, ratio: tempImageRatio }] }));
+      // Reseta o input
+      if (e.target) e.target.value = '';
+    }
   };
 
-  const handleAddTempImage = () => {
-    if (!tempImagePreview || !tempImageFile) return;
-    setPendingImageFiles(prev => [...prev, { file: tempImageFile, ratio: tempImageRatio }]);
-    setNewProperty(prev => ({ ...prev, images: [...prev.images, { url: tempImagePreview, ratio: tempImageRatio }] }));
-    setTempImageFile(null); setTempImagePreview('');
-    const fi = document.getElementById('property-image-file-input');
-    if (fi) fi.value = '';
+  const handleAddTempImage = (e) => {
+    // Se chamado por evento de input, adiciona direto
+    if (e && e.target && e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file) {
+        const preview = URL.createObjectURL(file);
+        setPendingImageFiles(prev => [...prev, { file, ratio: tempImageRatio }]);
+        setNewProperty(prev => ({ ...prev, images: [...prev.images, { url: preview, ratio: tempImageRatio }] }));
+        // Reseta o input
+        if (e.target) e.target.value = '';
+      }
+    }
   };
 
   const handleRemoveImage = (idx) => {
@@ -399,23 +410,45 @@ export default function App() {
     console.log('[handleCreateProperty] Iniciando cadastro:', { title: newProperty.title, modo: corretorProfile.modo, corretorId: corretorProfile.id, imagesCount: newProperty.images.length, pendingFilesCount: pendingImageFiles.length });
 
     let cId = corretorProfile.id;
-    let cNome = corretorProfile.nome;
-    let cCreci = corretorProfile.creci;
-    let cWhatsapp = corretorProfile.whatsapp;
+    let cNome = corretorProfile.nome || '';
+    let cCreci = corretorProfile.creci || '';
+    let cWhatsapp = corretorProfile.whatsapp || '';
 
     if (corretorProfile.modo === 'team' && newProperty.brokerName) {
-      const found = brokers.find(b => b.name === newProperty.brokerName);
-      if (found) { cId = found.id; cNome = found.name; cCreci = found.creci; cWhatsapp = found.whatsapp; }
-      console.log('[handleCreateProperty] Modo team - corretor selecionado:', { cId, cNome });
+      const found = brokers.find(b => b.name === newProperty.brokerName || `${b.name}|${b.creci}` === newProperty.brokerName);
+      if (found) {
+        cId = found.id;
+        cNome = found.name || found.nome || cNome;
+        cCreci = found.creci || cCreci;
+        cWhatsapp = found.whatsapp || cWhatsapp;
+      }
+      console.log('[handleCreateProperty] Modo team - corretor selecionado:', { cId, cNome, cWhatsapp });
     } else {
-      console.log('[handleCreateProperty] Modo solo - usando corretor logado:', { cId });
+      console.log('[handleCreateProperty] Modo solo - usando corretor logado:', { cId, cNome, cWhatsapp });
+    }
+
+    // Upload images FIRST to avoid saving blob: URLs in database
+    let finalImages = newProperty.images.filter(img => img.url && !img.url.startsWith('blob:'));
+    if (pendingImageFiles.length > 0) {
+      try {
+        const tempId = 'prop-' + Date.now();
+        const filesToUpload = pendingImageFiles.map(p => p.file);
+        const ratiosToUpload = pendingImageFiles.map(p => p.ratio);
+        console.log('[handleCreateProperty] Fazendo upload de', filesToUpload.length, 'arquivos...');
+        const uploaded = await uploadPropertyImages(filesToUpload, tempId, ratiosToUpload);
+        finalImages = [...finalImages, ...uploaded];
+        console.log('[handleCreateProperty] Upload OK, URLs:', uploaded.map(u => u.url));
+      } catch (uploadError) {
+        console.error('[handleCreateProperty] Erro no upload de imagens:', uploadError);
+        alert('Atenção: Não foi possível enviar as fotos para o servidor. Verifique se o bucket "imoveis" foi criado no Supabase Storage. O imóvel será cadastrado sem fotos quebradas.');
+      }
     }
 
     const { data, error } = await supabase.from('imoveis').insert({
       titulo: newProperty.title, preco: newProperty.price,
       localizacao: newProperty.location, maps_link: newProperty.mapsLink,
       specs: newProperty.specs, regra: newProperty.rule,
-      imagens: newProperty.images,
+      imagens: finalImages,
       corretor_id: cId, corretor_nome: cNome, corretor_creci: cCreci, corretor_whatsapp: cWhatsapp,
       equipe_id: corretorProfile.equipe_id || null,
       leads_count: 0,
@@ -423,28 +456,7 @@ export default function App() {
 
     if (error) { console.error('[handleCreateProperty] Erro no insert:', error); alert('Erro ao cadastrar imóvel: ' + error.message); setIsSubmittingProperty(false); return; }
 
-    console.log('[handleCreateProperty] Insert OK, data.id:', data.id, 'imagens no banco:', data.imagens);
-
-    // Upload images to Supabase Storage if there are pending files
-    let finalImages = newProperty.images;
-    if (pendingImageFiles.length > 0) {
-      try {
-        const filesToUpload = pendingImageFiles.map(p => p.file);
-        const ratiosToUpload = pendingImageFiles.map(p => p.ratio);
-        console.log('[handleCreateProperty] Fazendo upload de', filesToUpload.length, 'arquivos...', ratiosToUpload);
-        const uploaded = await uploadPropertyImages(filesToUpload, data.id, ratiosToUpload);
-        finalImages = uploaded;
-        console.log('[handleCreateProperty] Upload OK, URLs:', uploaded.map(u => u.url));
-        // Update property with permanent URLs
-        await supabase.from('imoveis').update({ imagens: uploaded }).eq('id', data.id);
-        console.log('[handleCreateProperty] Update no banco OK');
-      } catch (uploadError) {
-        console.error('[handleCreateProperty] Erro no upload:', uploadError);
-        // Keep blob URLs as fallback
-      }
-    }
-
-    const mapped = mapProperty({ ...data, imagens: finalImages });
+    const mapped = mapProperty(data);
     console.log('[handleCreateProperty] Mapped property:', { id: mapped.id, title: mapped.title, images: mapped.images, image: mapped.image });
     setProperties(prev => [mapped, ...prev]);
     setLastCreatedProperty(mapped);
@@ -615,7 +627,7 @@ INSTRUÇÕES:
     }
   };
 
-  const handleResetSim = () => { setSimStep(0); setChatMessages([]); setTypedMessage(''); setSimInputName(''); setSimInputProfession(''); setPublicLeadName(''); setPublicLeadProfession(''); setGroqHistory([]); };
+  const handleResetSim = () => { setSimStep(0); setChatMessages([]); setTypedMessage(''); setSimInputName(''); setSimInputProfession(''); setPublicLeadName(''); setPublicLeadProfession(''); setPublicLeadIncome(''); setGroqHistory([]); };
 
   const getLeadsByStage = (stage) => leads.filter(l => l.stage === stage);
 
@@ -629,85 +641,53 @@ INSTRUÇÕES:
     setIsTyping(true);
     const prop = publicProperty;
 
-    if (!GROQ_API_KEY) {
-      // Local fallback
-      if (!publicLeadName) {
-        setPublicLeadName(userMsg);
-        addBotMessage(`Que legal, **${userMsg}**!  E o que você faz profissionalmente?`);
-        setIsTyping(false); return;
-      }
-      if (!publicLeadProfession) {
-        setPublicLeadProfession(userMsg);
-        const faixasTexto = INCOME_FAIXAS.map((f, i) => `${['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'][i]} ${f.label}`).join('\n');
-        addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número `);
-        setIsTyping(false); return;
-      }
-      const index = parseInt(userMsg) - 1;
-      const faixa = INCOME_FAIXAS[index];
-      if (!faixa) { addBotMessage(`Opção inválida. Me diz o número da faixa, por favor `); setIsTyping(false); return; }
-      const minEscore = getMinEscore(prop?.rule);
-      const isQualified = faixa.escore >= minEscore;
-      if (!isQualified) {
-        addBotMessage(`Obrigado, **${publicLeadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! `);
-        setTimeout(async () => {
-          await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Inválido p/ Imóvel', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: 'Sistema (Desqualificado)', corretor_creci: '', estagio: 'Perdido', whatsapp: '' });
-          setSimStep(6);
-        }, 2000);
-        setIsTyping(false); return;
-      }
-      const brokerWa = prop?.brokerWhatsapp || '';
-      addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado `);
-      setTimeout(async () => {
-        setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-        await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'lead_validado', whatsapp: '' });
-        await supabase.from('imoveis').update({ leads_count: (prop?.leadsCount || 0) + 1 }).eq('id', prop?.id);
-        setSimStep(6);
-      }, 1500);
-      setIsTyping(false); return;
-    }
-
-    // Fluxo DETERMINÍSTICO local (garantido) - não depende do Groq seguir prompt
-    // Estado: chatMessages.length 1=apresentação, 2=nome recebido, 3=profissão recebida, 4=renda recebida
-    const msgCount = chatMessages.length;
-
-    if (msgCount === 1) {
-      // Usuário enviou nome
+    // Etapa 1: Nome do lead
+    if (!publicLeadName) {
       setPublicLeadName(userMsg);
-      addBotMessage(`Que legal, **${userMsg}**!  E o que você faz profissionalmente?`);
-      setIsTyping(false); return;
+      addBotMessage(`Que legal, **${userMsg}**! 😊 E o que você faz profissionalmente?`);
+      setIsTyping(false);
+      return;
     }
 
-    if (msgCount === 2) {
-      // Usuário enviou profissão
+    // Etapa 2: Profissão do lead
+    if (!publicLeadProfession) {
       setPublicLeadProfession(userMsg);
       const faixasTexto = INCOME_FAIXAS.map((f, i) => `${['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'][i]} ${f.label}`).join('\n');
-      addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número `);
-      setIsTyping(false); return;
+      addBotMessage(`Entendi! E sua renda mensal se encaixa em qual faixa?\n\n${faixasTexto}\n\nSó me diz o número 😉`);
+      setIsTyping(false);
+      return;
     }
 
-    if (msgCount === 3) {
-      // Usuário enviou número da faixa
+    // Etapa 3: Faixa de renda (Número)
+    if (!publicLeadIncome) {
       const index = parseInt(userMsg) - 1;
       const faixa = INCOME_FAIXAS[index];
-      if (!faixa) { addBotMessage(`Opção inválida. Me diz o número da faixa, por favor `); setIsTyping(false); return; }
+      if (!faixa) {
+        addBotMessage(`Opção inválida. Me diz o número da faixa (1 a 5), por favor 😊`);
+        setIsTyping(false);
+        return;
+      }
+      setPublicLeadIncome(faixa.label);
       const minEscore = getMinEscore(prop?.rule);
       const isQualified = faixa.escore >= minEscore;
       if (!isQualified) {
-        addBotMessage(`Obrigado, **${publicLeadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! `);
+        addBotMessage(`Obrigado, **${publicLeadName}**! Infelizmente seu perfil não atende aos critérios de renda para este imóvel (escore ${faixa.escore}, mínimo ${minEscore}). Agradecemos pelo interesse! 🙏`);
         setTimeout(async () => {
           await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Inválido p/ Imóvel', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: 'Sistema (Desqualificado)', corretor_creci: '', estagio: 'Perdido', whatsapp: '' });
           setSimStep(6);
         }, 2000);
-        setIsTyping(false); return;
+        setIsTyping(false);
+        return;
       }
-      addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado `);
+      addBotMessage(`Perfeito! **${publicLeadName}**, seu perfil foi aprovado ✅`);
       setTimeout(async () => {
         setChatMessages(prev => [...prev, { sender: 'bot', text: `Agora é só clicar no botão abaixo e falar diretamente com **${prop?.brokerName}** no WhatsApp. 🎉`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
         await supabase.from('leads').insert({ nome: publicLeadName, documento: faixa.value, doc_tipo: `Escore ${faixa.escore}`, doc_status: 'Regular', imovel_id: prop?.id || null, imovel_nome: prop?.title || '', corretor_id: prop?.corretorId || null, equipe_id: prop?.equipeId || null, corretor_nome: prop?.brokerName || '', corretor_creci: prop?.brokerCreci || '', estagio: 'lead_validado', whatsapp: '' });
         await supabase.from('imoveis').update({ leads_count: (prop?.leadsCount || 0) + 1 }).eq('id', prop?.id);
         setSimStep(6);
       }, 1500);
-      setIsTyping(false); return;
+      setIsTyping(false);
+      return;
     }
 
     // Fallback: se passou de 3 mensagens, usa Groq para conversa livre
@@ -1238,24 +1218,30 @@ INSTRUÇÕES:
                   <div className="form-group"><label>Regra de Qualificação</label><select className="form-control" value={newProperty.rule} onChange={e => setNewProperty({ ...newProperty, rule: e.target.value })}><option value="R$ 3.001 a R$ 5.000">Renda a partir de R$ 3.001 (Escore 50)</option><option value="R$ 5.001 a R$ 10.000">Renda a partir de R$ 5.001 (Escore 75)</option><option value="Acima de R$ 10.000">Renda acima de R$ 10.000 (Escore 100)</option></select></div>
                 </div>
                 {accountMode === 'team' && (
-                  <div className="form-group"><label>Corretor Responsável</label><select className="form-control" value={newProperty.brokerName ? `${newProperty.brokerName}|${newProperty.brokerCreci}` : ''} onChange={e => { const [name, creci] = e.target.value.split('|'); setNewProperty({ ...newProperty, brokerName: name || '', brokerCreci: creci || '' }); }}><option value="">Selecione um corretor</option>{brokers.filter(b => b.dbStatus === 'ativo').map(b => <option key={b.id} value={`${b.name}|${b.creci}`}>{b.name} - {b.creci}</option>)}</select></div>
+                  <div className="form-group"><label>Corretor Responsável</label><select className="form-control" value={newProperty.brokerName ? `${newProperty.brokerName}|${newProperty.brokerCreci}` : ''} onChange={e => { const val = e.target.value; if (!val) { setNewProperty({ ...newProperty, brokerName: '', brokerCreci: '', brokerWhatsapp: '' }); return; } const [name, creci] = val.split('|'); const found = brokers.find(b => b.name === name); setNewProperty({ ...newProperty, brokerName: name || '', brokerCreci: creci || '', brokerWhatsapp: found?.whatsapp || '' }); }}><option value="">Selecione um corretor</option>{brokers.filter(b => b.dbStatus === 'ativo').map(b => <option key={b.id} value={`${b.name}|${b.creci}`}>{b.name} - {b.creci}</option>)}</select></div>
                 )}
                 <div className="form-group"><label>Localização</label><input type="text" className="form-control" placeholder="Ex: Asa Sul, Brasília - DF" value={newProperty.location} onChange={e => setNewProperty({ ...newProperty, location: e.target.value })} required /></div>
                 <div className="form-group"><label>Link do Google Maps</label><input type="url" className="form-control" placeholder="https://maps.app.goo.gl/..." value={newProperty.mapsLink} onChange={e => setNewProperty({ ...newProperty, mapsLink: e.target.value })} /></div>
                 <div className="form-group"><label>Especificações</label><input type="text" className="form-control" placeholder="Ex: 3 Quartos | 2 Banheiros | 2 Vagas" value={newProperty.specs} onChange={e => setNewProperty({ ...newProperty, specs: e.target.value })} required /></div>
                 <div className="form-group" style={{ border: '1px dashed #1f2937', borderRadius: '8px', padding: '16px', backgroundColor: 'rgba(255,255,255,0.01)' }}>
                   <label style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginBottom: '12px', display: 'block' }}>Fotos do Imóvel</label>
-                  <div className="photo-upload-row">
-                    <div className="photo-upload-file"><input type="file" id="property-image-file-input" className="form-control" accept="image/*" onChange={handleTempImageUploadChange} style={{ padding: '8px' }} /></div>
-                    <div className="photo-upload-ratio"><select className="form-control" value={tempImageRatio} onChange={e => setTempImageRatio(e.target.value)}><option value="1:1">Proporção 1:1</option><option value="9:16">Proporção 9:16</option></select></div>
-                    <button type="button" className="btn btn-primary" onClick={handleAddTempImage} disabled={!tempImagePreview} style={{ height: '42px', padding: '0 16px', whiteSpace: 'nowrap' }}>Adicionar</button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <div style={{ width: '100px' }}><select className="form-control" value={tempImageRatio} onChange={e => setTempImageRatio(e.target.value)}><option value="1:1">1:1 (quadrada)</option><option value="9:16">9:16 (retrato)</option></select></div>
+                      <div style={{ flex: 1 }}><input type="file" id="property-image-file-input" className="form-control" accept="image/*" onChange={handleTempImageUploadChange} style={{ padding: '8px' }} /></div>
+                    </div>
                   </div>
-                  {tempImagePreview && <div style={{ marginBottom: '16px' }}><p style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Preview:</p><div style={{ width: '120px', height: '120px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #2563eb' }}><img src={tempImagePreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div></div>}
-                  {newProperty.images.length > 0 && <div style={{ marginTop: '16px' }}><p style={{ fontSize: '12px', fontWeight: 600, color: 'white', marginBottom: '8px' }}>Fotos Adicionadas ({newProperty.images.length})</p><div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>{newProperty.images.map((img, idx) => <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #1f2937' }}><img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /><button type="button" onClick={() => handleRemoveImage(idx)} style={{ position: 'absolute', top: '2px', right: '2px', backgroundColor: 'rgba(239,68,68,0.9)', border: 'none', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>✕</button></div>)}</div></div>}
+                  <div style={{ marginTop: '12px' }}>
+                    {newProperty.images.length > 0 ? (
+                      <div><p style={{ fontSize: '12px', fontWeight: 600, color: 'white', marginBottom: '8px' }}>Fotos Adicionadas ({newProperty.images.length})</p><div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>{newProperty.images.map((img, idx) => <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #1f2937' }}><img src={img.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /><button type="button" onClick={() => handleRemoveImage(idx)} style={{ position: 'absolute', top: '2px', right: '2px', backgroundColor: 'rgba(239,68,68,0.9)', border: 'none', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>✕</button></div>)}</div></div>
+                    ) : (
+                      <p style={{ fontSize: '11px', color: '#64748b', textAlign: 'center' }}>Selecione uma foto acima (formato: {tempImageRatio})</p>
+                    )}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} disabled={isSubmittingProperty}>{isSubmittingProperty ? 'Salvando...' : 'Salvar Imóvel'}</button>
-                  <button type="button" className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setActiveTab('imoveis')}>Cancelar</button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '24px' }}>
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={isSubmittingProperty}>{isSubmittingProperty ? 'Salvando...' : 'Salvar Imóvel'}</button>
+                  <button type="button" className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setActiveTab('imoveis')}>Cancelar</button>
                 </div>
               </form>
             </div>

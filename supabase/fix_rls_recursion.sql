@@ -50,16 +50,21 @@ CREATE POLICY "imoveis_insert_own" ON imoveis
   FOR INSERT WITH CHECK (
     corretor_id IN (SELECT id FROM corretores WHERE user_id = auth.uid())
     OR equipe_id IN (SELECT id FROM equipes WHERE admin_user_id = auth.uid())
+    OR equipe_id IN (SELECT equipe_id FROM corretores WHERE user_id = auth.uid())
   );
 
 CREATE POLICY "imoveis_update_own" ON imoveis
   FOR UPDATE USING (
     corretor_id IN (SELECT id FROM corretores WHERE user_id = auth.uid())
+    OR equipe_id IN (SELECT id FROM equipes WHERE admin_user_id = auth.uid())
+    OR equipe_id IN (SELECT equipe_id FROM corretores WHERE user_id = auth.uid())
   );
 
 CREATE POLICY "imoveis_delete_own" ON imoveis
   FOR DELETE USING (
     corretor_id IN (SELECT id FROM corretores WHERE user_id = auth.uid())
+    OR equipe_id IN (SELECT id FROM equipes WHERE admin_user_id = auth.uid())
+    OR equipe_id IN (SELECT equipe_id FROM corretores WHERE user_id = auth.uid())
   );
 
 -- 4. Drop and recreate policies on leads that reference corretores

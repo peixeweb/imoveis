@@ -10,7 +10,7 @@ export default function useAuth() {
   const [corretorProfile, setCorretorProfile] = useState(null);
 
   const loadCorretorProfile = useCallback(async (userId) => {
-    const { data } = await supabase.from('corretores').select('*').eq('user_id', userId).single();
+    const { data } = await supabase.from('corretores').select('*').eq('user_id', userId).maybeSingle();
     if (data) {
       setCorretorProfile(data);
       setAppState('app');
@@ -64,20 +64,47 @@ export default function useAuth() {
     }
     setAuthLoading(true);
     setAuthError('');
-    const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password });
-    if (authErr) { setAuthError(authErr.message); setAuthLoading(false); return false; }
-    const { data: corrData, error: corrErr } = await supabase.from('corretores').insert({
-      user_id: authData.user.id,
-      nome, whatsapp, creci,
-      modo: 'solo', status: 'ativo', is_admin: true,
-    }).select().single();
-    if (corrErr) { setAuthError('Erro ao criar perfil: ' + corrErr.message); setAuthLoading(false); return false; }
-    setCurrentUser(authData.user);
-    setCorretorProfile(corrData);
-    setAppState('app');
-    setAuthLoading(false);
-    return true;
-  }, []);
+    try {
+      const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password });
+      if (authErr) {
+        if (authErr.code === 'user_already_exists' || /already registered/i.test(authErr.message || '')) {
+          const { data: loginData } = await supabase.auth.signInWithPassword({ email, password });
+          if (loginData?.user) {
+            setCurrentUser(loginData.user);
+            await loadCorretorProfile(loginData.user.id);
+            setAuthLoading(false);
+            return true;
+          }
+        }
+        setAuthError(authErr.message);
+        setAuthLoading(false);
+        return false;
+      }
+      const { data: corrData, error: corrErr } = await supabase.from('corretores').insert({
+        user_id: authData.user.id,
+        nome,
+        whatsapp,
+        creci,
+        modo: 'solo',
+        status: 'ativo',
+        is_admin: true,
+      }).select().single();
+      if (corrErr) {
+        setAuthError('Erro ao criar perfil: ' + corrErr.message);
+        setAuthLoading(false);
+        return false;
+      }
+      setCurrentUser(authData.user);
+      setCorretorProfile(corrData);
+      setAppState('app');
+      setAuthLoading(false);
+      return true;
+    } catch (err) {
+      setAuthError('Erro inesperado: ' + err.message);
+      setAuthLoading(false);
+      return false;
+    }
+  }, [loadCorretorProfile]);
 
   const handleSignupTeam = useCallback(async ({ equipeNome, nome, creci, whatsapp, email, password }) => {
     if (!equipeNome || !nome || !creci || !email || !password) {
@@ -86,23 +113,59 @@ export default function useAuth() {
     }
     setAuthLoading(true);
     setAuthError('');
-    const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password });
-    if (authErr) { setAuthError(authErr.message); setAuthLoading(false); return false; }
-    const { data: equipeData, error: equipeErr } = await supabase.from('equipes').insert({ nome: equipeNome, admin_user_id: authData.user.id }).select().single();
-    if (equipeErr) { setAuthError('Erro ao criar equipe: ' + equipeErr.message); setAuthLoading(false); return false; }
-    const { data: corrData, error: corrErr } = await supabase.from('corretores').insert({
-      user_id: authData.user.id,
-      nome, whatsapp, creci,
-      modo: 'team', equipe_id: equipeData.id, equipe_nome: equipeNome,
-      status: 'ativo', is_admin: true,
-    }).select().single();
-    if (corrErr) { setAuthError('Erro ao criar perfil: ' + corrErr.message); setAuthLoading(false); return false; }
-    setCurrentUser(authData.user);
-    setCorretorProfile(corrData);
-    setAppState('app');
-    setAuthLoading(false);
-    return true;
-  }, []);
+    try {
+      const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password });
+      if (authErr) {
+        if (authErr.code === 'user_already_exists' || /already registered/i.test(authErr.message || '')) {
+          const { data: loginData } = await supabase.auth.signInWithPassword({ email, password });
+          if (loginData?.user) {
+            setCurrentUser(loginData.user);
+            const { data: existingCorr } = await supabase.from('corretores').select('*').eq('user_id', loginData.user.id).maybeSingle();
+            if (existingCorr) {
+              setCorretorProfile(existingCorr);
+              setAppState('app');
+              setAuthLoading(false);
+              return true;
+            }
+          }
+        }
+        setAuthError(authErr.message);
+        setAuthLoading(false);
+        return false;
+      }
+      const { data: equipeData, error: equipeErr } = await supabase.from('equipes').insert({ nome: equipeNome, admin_user_id: authData.user.id }).select().single();
+      if (equipeErr) {
+        setAuthError('Erro ao criar equipe: ' + equipeErr.message);
+        setAuthLoading(false);
+        return false;
+      }
+      const { data: corrData, error: corrErr } = await supabase.from('corretores').insert({
+        user_id: authData.user.id,
+        nome,
+        whatsapp,
+        creci,
+        modo: 'team',
+        equipe_id: equipeData.id,
+        equipe_nome: equipeNome,
+        status: 'ativo',
+        is_admin: true,
+      }).select().single();
+      if (corrErr) {
+        setAuthError('Erro ao criar perfil: ' + corrErr.message);
+        setAuthLoading(false);
+        return false;
+      }
+      setCurrentUser(authData.user);
+      setCorretorProfile(corrData);
+      setAppState('app');
+      setAuthLoading(false);
+      return true;
+    } catch (err) {
+      setAuthError('Erro inesperado: ' + err.message);
+      setAuthLoading(false);
+      return false;
+    }
+  }, [loadCorretorProfile]);
 
   const handleLogout = useCallback(async () => {
     if (window.confirm('Deseja sair da plataforma?')) {

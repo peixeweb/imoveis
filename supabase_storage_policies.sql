@@ -13,40 +13,40 @@ values (
   52428800,  -- 50MB
   array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 )
-on conflict (id) do nothing;
+on conflict (id) do update set public = true;
 
--- 2. Política: INSERT - Upload para usuários autenticados
+-- 2. Remover políticas existentes para evitar erro de duplicação
+drop policy if exists "Authenticated users can upload property images" on storage.objects;
+drop policy if exists "Public upload for property images" on storage.objects;
+drop policy if exists "Public read access for property images" on storage.objects;
+drop policy if exists "Users can update own property images" on storage.objects;
+drop policy if exists "Users can delete own property images" on storage.objects;
+
+-- 3. Política: INSERT - Upload para usuários autenticados ou públicos
 create policy "Authenticated users can upload property images"
 on storage.objects for insert
-to authenticated
+to public
 with check (
   bucket_id = 'imoveis'
-  and auth.role() = 'authenticated'
 );
 
--- 3. Política: SELECT - Leitura pública das imagens
+-- 4. Política: SELECT - Leitura pública das imagens
 create policy "Public read access for property images"
 on storage.objects for select
 to public
 using (bucket_id = 'imoveis');
 
--- 4. Política: UPDATE - Atualizar apenas próprios arquivos (opcional)
+-- 5. Política: UPDATE - Atualizar imagens do bucket
 create policy "Users can update own property images"
 on storage.objects for update
-to authenticated
-using (
-  bucket_id = 'imoveis'
-  and auth.uid()::text = (storage.foldername(name))[1]
-);
+to public
+using (bucket_id = 'imoveis');
 
--- 5. Política: DELETE - Excluir apenas próprios arquivos (opcional)
+-- 6. Política: DELETE - Excluir imagens do bucket
 create policy "Users can delete own property images"
 on storage.objects for delete
-to authenticated
-using (
-  bucket_id = 'imoveis'
-  and auth.uid()::text = (storage.foldername(name))[1]
-);
+to public
+using (bucket_id = 'imoveis');
 
 -- ============================================
 -- VERIFICAÇÃO

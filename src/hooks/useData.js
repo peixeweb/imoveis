@@ -2,6 +2,16 @@ import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 export function mapProperty(p) {
+  const rawImages = Array.isArray(p.imagens) ? p.imagens : [];
+  const normalized = rawImages.map(img => {
+    if (typeof img === 'string') return { url: img, ratio: '1:1' };
+    if (img && typeof img === 'object' && img.url) return img;
+    return null;
+  }).filter(Boolean);
+
+  const validImages = normalized.filter(img => img.url && !img.url.startsWith('blob:'));
+  const firstImage = validImages.length > 0 ? validImages[0].url : '/creativo_casa.png';
+
   return {
     id: p.id,
     title: p.titulo,
@@ -10,8 +20,8 @@ export function mapProperty(p) {
     mapsLink: p.maps_link || '',
     specs: p.specs || '',
     rule: p.regra,
-    images: Array.isArray(p.imagens) ? p.imagens : [],
-    image: Array.isArray(p.imagens) && p.imagens.length > 0 ? p.imagens[0].url : '',
+    images: validImages,
+    image: firstImage,
     leadsCount: p.leads_count || 0,
     corretorId: p.corretor_id || null,
     equipeId: p.equipe_id || null,
@@ -62,15 +72,23 @@ export default function useData() {
     setLoadingData(true);
     try {
       let propQ = supabase.from('imoveis').select('*').order('created_at', { ascending: false });
-      if (profile.modo === 'team' && profile.equipe_id) propQ = propQ.eq('equipe_id', profile.equipe_id);
-      else propQ = propQ.eq('corretor_id', profile.id);
-      const { data: propsData } = await propQ;
+      if (profile.modo === 'team' && profile.equipe_id) {
+        propQ = propQ.or(`equipe_id.eq.${profile.equipe_id},corretor_id.eq.${profile.id}`);
+      } else {
+        propQ = propQ.or(`corretor_id.eq.${profile.id},corretor_id.eq.${profile.user_id}`);
+      }
+      const { data: propsData, error: propErr } = await propQ;
+      if (propErr) console.error('[useData] Erro ao buscar imóveis:', propErr);
       setProperties((propsData || []).map(mapProperty));
 
       let leadQ = supabase.from('leads').select('*').order('created_at', { ascending: false });
-      if (profile.modo === 'team' && profile.equipe_id) leadQ = leadQ.eq('equipe_id', profile.equipe_id);
-      else leadQ = leadQ.eq('corretor_id', profile.id);
-      const { data: leadsData } = await leadQ;
+      if (profile.modo === 'team' && profile.equipe_id) {
+        leadQ = leadQ.or(`equipe_id.eq.${profile.equipe_id},corretor_id.eq.${profile.id}`);
+      } else {
+        leadQ = leadQ.or(`corretor_id.eq.${profile.id},corretor_id.eq.${profile.user_id}`);
+      }
+      const { data: leadsData, error: leadErr } = await leadQ;
+      if (leadErr) console.error('[useData] Erro ao buscar leads:', leadErr);
       setLeads((leadsData || []).map(mapLead));
 
       if (profile.modo === 'team' && profile.equipe_id) {
@@ -84,17 +102,22 @@ export default function useData() {
 
   const refreshData = useCallback((profile) => profile && loadAllData(profile), [loadAllData]);
 
-  const handleCreateProperty = useCallback(async (newProperty, corretorProfile, brokers) => {
+  const handleCreateProperty = useCallback(async (newProperty, corretorProfile, brokers = []) => {
     if (!newProperty.title || !newProperty.price) return null;
 
     let cId = corretorProfile.id;
-    let cNome = corretorProfile.nome;
-    let cCreci = corretorProfile.creci;
-    let cWhatsapp = corretorProfile.whatsapp;
+    let cNome = corretorProfile.nome || '';
+    let cCreci = corretorProfile.creci || '';
+    let cWhatsapp = corretorProfile.whatsapp || '';
 
     if (corretorProfile.modo === 'team' && newProperty.brokerName) {
-      const found = brokers.find(b => b.name === newProperty.brokerName);
-      if (found) { cId = found.id; cNome = found.name; cCreci = found.creci; cWhatsapp = found.whatsapp; }
+      const found = brokers.find(b => b.name === newProperty.brokerName || `${b.name}|${b.creci}` === newProperty.brokerName);
+      if (found) {
+        cId = found.id;
+        cNome = found.name || found.nome || cNome;
+        cCreci = found.creci || cCreci;
+        cWhatsapp = found.whatsapp || cWhatsapp;
+      }
     }
 
     const { data, error } = await supabase.from('imoveis').insert({
@@ -107,7 +130,7 @@ export default function useData() {
       leads_count: 0,
     }).select().single();
 
-    if (error) { alert('Erro ao cadastrar imóvel: ' + error.message); return null; }
+    if (error) { console.error('[handleCreateProperty] Erro no insert:', error); alert('Erro ao cadastrar imóvel: ' + error.message); return null; }
 
     const mapped = mapProperty(data);
     setProperties(prev => [mapped, ...prev]);
